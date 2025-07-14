@@ -1,41 +1,75 @@
-
 import asyncio
-from telethon import TelegramClient, events
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
+from telethon import TelegramClient, events
+from telethon.tl.functions.messages import GetDialogsRequest
+from telethon.tl.types import InputPeerEmpty
 
 from filters import is_trade_signal
 from sanitizer import sanitize_with_ai
 from signal_processor import process_sanitized_signal
+from client_factory import get_client
 
-load_dotenv()
+# Load environment variables
+
+# Load channel IDs from environment
+SOURCE_CHANNEL_IDS = [int(cid) for cid in os.getenv("SOURCE_CHANNEL_IDS", "").split(',') if cid.strip()]
 
 API_ID = int(os.getenv("TELEGRAM_API_ID"))
 API_HASH = os.getenv("TELEGRAM_API_HASH")
-SESSION_NAME = "signal_splitter"
+ENVIRONMENT = os.getenv("ENVIRONMENT", "test")  # e.g., 'test' or 'prod'
 
-SOURCE_CHANNEL_IDS = [int(cid) for cid in os.getenv("SOURCE_CHANNEL_IDS").split(',')]
+# Set session file name based on environment
+SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
+SESSION_B64 = f"{SESSION_NAME}.b64"
 
-client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
-
-
-@client.on(events.NewMessage(chats=SOURCE_CHANNEL_IDS))
-
-async def handler(event):
-    text = event.message.message
-    if not is_trade_signal(text):
-        return
-
-    try:
-        sanitized = await sanitize_with_ai(text)
-        await process_sanitized_signal(sanitized)
-    except Exception as e:
-        print("❌ Error processing message:", e)
-
-
+print(f"{SESSION_NAME}.b64")
+# Decode .b64 to .session if not already decoded
+if not os.path.exists(SESSION_NAME) and os.path.exists(SESSION_B64):
+    print(f"🔐 Decoding session file for {ENVIRONMENT}...")
+    with open(SESSION_B64, "rb") as f_in, open(SESSION_NAME, "wb") as f_out:
+        f_out.write(base64.b64decode(f_in.read()))
+    print("✅ Session file decoded.")
+print(os.path.exists(SESSION_NAME))
+print(os.path.exists(SESSION_B64))
+def get_client() -> TelegramClient:
+    return TelegramClient(SESSION_NAME, API_ID, API_HASH)
 async def main():
+    # Get a properly initialized client
+    client = get_client()
+
+    if client is None:
+        raise RuntimeError("Telegram client not initialized. Check your environment variables.")
+
+    # Define the handler INSIDE main to ensure `client` is valid
+    @client.on(events.NewMessage(chats=SOURCE_CHANNEL_IDS))
+    async def handler(event):
+        text = event.message.message
+        print(f"📥 Received: {repr(text)}")
+
+        if not is_trade_signal(text):
+            print("⏭️ Skipped: Not a trade signal.")
+            return
+
+        try:
+            sanitized = await sanitize_with_ai(text)
+            await process_sanitized_signal(sanitized)
+        except Exception as e:
+            print("❌ Error processing message:", e)
+
+    # Start and keep running
     await client.start()
-    print("✅ Bot is running.")
+    print("✅ Telegram client started.")
+
+    # Optional: fetch dialogs for testing
+
+
+    # Optionally print dialog names
+    # for dialog in dialogs.chats:
+    #     print(f"{dialog.id}: {dialog.title}")
+
     await client.run_until_disconnected()
 
 if __name__ == "__main__":
