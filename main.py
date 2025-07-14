@@ -12,6 +12,8 @@ from sanitizer import sanitize_with_ai
 from signal_processor import process_sanitized_signal
 from client_factory import get_client
 
+
+
 # Load environment variables
 
 # Load channel IDs from environment
@@ -40,13 +42,13 @@ async def main():
     # Get a properly initialized client
     client = get_client()
 
-    if client is None:
-        raise RuntimeError("Telegram client not initialized. Check your environment variables.")
 
     # Define the handler INSIDE main to ensure `client` is valid
     @client.on(events.NewMessage(chats=SOURCE_CHANNEL_IDS))
+
     async def handler(event):
         text = event.message.message
+        print(text.lower())
         print(f"📥 Received: {repr(text)}")
 
         if not is_trade_signal(text):
@@ -54,6 +56,7 @@ async def main():
             return
 
         try:
+
             sanitized = await sanitize_with_ai(text)
             await process_sanitized_signal(sanitized)
         except Exception as e:
@@ -61,8 +64,23 @@ async def main():
 
     # Start and keep running
     await client.start()
-    print("✅ Telegram client started.")
 
+    print("✅ Telegram client started.")
+    print("📥 Fetching dialogs (channels, groups, chats)...")
+    dialogs = await client(GetDialogsRequest(
+        offset_date=None,
+        offset_id=0,
+        offset_peer=InputPeerEmpty(),
+        limit=200,
+        hash=0
+    ))
+
+    print("📋 Your accessible channels and their IDs:")
+    for chat in dialogs.chats:
+        if getattr(chat, "title", None):
+            print(f"• {chat.title} — ID: {chat.id}")
+
+    print("✅ Client started and listening for new messages.")
     # Optional: fetch dialogs for testing
 
 

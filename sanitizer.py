@@ -15,7 +15,7 @@ Instructions:
 - Match each entry to a TP so that one pair has the smallest delta, one the largest, and one in between.
 - Keep SL and direction consistent.
 
-Return the output in this format:
+Return the output in this format and not additional text:
 
 * Instrument: XAUUSD
 * Signal: BUY Limit
@@ -63,7 +63,6 @@ async def sanitize_with_ai(signal_text):
             temperature=0.3
         )
         return response.choices[0].message.content.strip()
-
     except Exception as e:
         print("❌ AI sanitization failed:", e)
         return signal_text  # fallback
