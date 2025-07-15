@@ -71,6 +71,7 @@ async def main():
 
         except Exception as e:
             print("❌ Error processing message:", e)
+            print(traceback.format_exc())
 
     # Start and keep running
     await client.start()

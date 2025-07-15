@@ -3,7 +3,7 @@ import os
 
 from openai import OpenAI
 from dotenv import load_dotenv
-
+from filters import should_ignore_message
 load_dotenv()
 OpenAI.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -51,7 +51,11 @@ client = OpenAI(
 )
 
 async def sanitize_with_ai(signal_text):
+
     try:
+        if should_ignore_message(signal_text):
+            print("⚠️ Ignored non-signal message.")
+            return None  # or []
         response = client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[
@@ -64,7 +68,7 @@ async def sanitize_with_ai(signal_text):
                     "content": signal_text
                 }
             ],
-            temperature=0.3
+            temperature=0.1
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
