@@ -52,16 +52,22 @@ async def main():
             return
 
         try:
-            # Get channel title as signal source
-            if event.chat and hasattr(event.chat, 'title'):
-                source_name = event.chat.title
-            else:
-                source_name = "Unknown"
+            source_name = event.chat.title if event.chat and hasattr(event.chat, 'title') else "Unknown"
+            message_link = None
+
+            if event.chat and hasattr(event.chat, 'username') and event.chat.username:
+                message_link = f"https://t.me/{event.chat.username}/{event.message.id}"
+
+            message_time = event.message.date.isoformat() + 'Z'
 
             sanitized = await sanitize_with_ai(text)
 
-            # Inject channel title into the AI-sanitized JSON
-            await process_sanitized_signal(sanitized, source_name)
+            await process_sanitized_signal(
+                sanitized,
+                source=source_name,
+                link=message_link,
+                timestamp=message_time
+            )
 
         except Exception as e:
             print("❌ Error processing message:", e)
