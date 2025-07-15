@@ -5,22 +5,39 @@ def is_trade_signal(text: str) -> bool:
 
 
 def should_ignore_message(text: str) -> bool:
-    text = text.lower()
+    text = text.lower().strip()
 
-    # Heuristics: common update phrases or numeric summaries
-    update_patterns = [
-        r'\b(tp|sl)[\s:]*(hit|triggered)?[\s:-]+\+?\d+\s*pips?',   # "TP1 hit +40"
-        r'\+[\d\.]+\s*pips?',                                  # "+40 pips"
-        r'sl\s+(hit|was hit)',                                 # "SL was hit"
-        r'update[d]?',                                         # "update"
-        r'(running|active)\s+signal',                          # "already running signal"
-        r'^buy\b.*?:\s*\+\d+',                                 # "BUY 3330-3328: +40"
-        r'^sell\b.*?:\s*\+\d+',                                # "SELL 2300-2295: +30"
-        r'\bresult\b|\bclosed\b|\bclose\b'                     # "Closed manually"
+    # ✅ Must contain SL and TP info
+    has_sl = re.search(r'\b(sl|stop\s*loss|🔴)\b', text, re.IGNORECASE)
+    has_tp = re.search(r'\b(tp|take\s*profit|🟢)\b', text, re.IGNORECASE)
+
+    if not (has_sl and has_tp):
+        print("🛑 Ignoring: missing SL or TP.")
+        return True
+
+    # ✅ Blacklist phrases
+    blacklist_keywords = [
+        "result", "results", "manual close", "manually closed",
+        "tp hit", "sl hit", "closed at", "update", "running",
+        "active signal", "already running", "already active",
+        "signal in play", "closed in profit", "floating"
     ]
-
-    for pattern in update_patterns:
-        if re.search(pattern, text):
+    for word in blacklist_keywords:
+        if word in text:
+            print(f"🛑 Ignoring: matched blacklist keyword '{word}'")
             return True
 
+    # ✅ Heuristic update patterns
+    update_patterns = [
+        r'\b(tp|sl)\s*(hit|triggered)?[:\-\s]*[\+\-]?\d+\s*pips?\b',
+        r'\+[\d\.]+\s*pips?\b',
+        r'\bsl\s+was\s+hit\b',
+        r'^(buy|sell)[\s\S]{0,20}:\s*\+?\d+\s*pips?'
+    ]
+    for pattern in update_patterns:
+        if re.search(pattern, text):
+            print(f"🛑 Ignoring: matched pattern '{pattern}'")
+            return True
+
+    print("✅ Message accepted as potential signal.")
     return False

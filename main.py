@@ -61,7 +61,7 @@ async def main():
             message_time = event.message.date.isoformat() + 'Z'
 
             sanitized = await sanitize_with_ai(text)
-
+            print("main_sanitized")
             await process_sanitized_signal(
                 sanitized,
                 source=source_name,

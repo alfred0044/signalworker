@@ -14,6 +14,7 @@ Instructions:
 - If a zone is given (e.g., 3348–3350), evenly split 3 entries in the range.
 - Match each entry to a TP so that one pair has the smallest delta, one the largest, and one in between.
 - Keep SL and direction consistent.
+- SL and TP must be present int the input. No inference allowed
 
 Return the output in this format stricly and not additional text:
 the rsult should statisfy .json requirements
