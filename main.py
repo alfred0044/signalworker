@@ -46,20 +46,25 @@ async def main():
 
     # Define the handler INSIDE main to ensure `client` is valid
     @client.on(events.NewMessage(chats=SOURCE_CHANNEL_IDS))
-
     async def handler(event):
         text = event.message.message
-        print(text.lower())
-        print(f"📥 Received: {repr(text)}")
-
         if not is_trade_signal(text):
-            print("⏭️ Skipped: Not a trade signal.")
             return
+
         try:
+            # Get channel title as signal source
+            if event.chat and hasattr(event.chat, 'title'):
+                source_name = event.chat.title
+            else:
+                source_name = "Unknown"
+
             sanitized = await sanitize_with_ai(text)
-            await process_sanitized_signal(sanitized)
+
+            # Inject channel title into the AI-sanitized JSON
+            await process_sanitized_signal(sanitized, source_name)
+
         except Exception as e:
-            print("❌ Error processing message:",traceback.format_exc())
+            print("❌ Error processing message:", e)
 
     # Start and keep running
     await client.start()
