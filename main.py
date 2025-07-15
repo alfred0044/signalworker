@@ -6,11 +6,12 @@ load_dotenv()
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import GetDialogsRequest
 from telethon.tl.types import InputPeerEmpty
-
+from datetime import datetime
 from filters import is_trade_signal
 from sanitizer import sanitize_with_ai
 from signal_processor import process_sanitized_signal
 from client_factory import get_client
+import traceback
 
 
 
@@ -54,13 +55,11 @@ async def main():
         if not is_trade_signal(text):
             print("⏭️ Skipped: Not a trade signal.")
             return
-
         try:
-
             sanitized = await sanitize_with_ai(text)
             await process_sanitized_signal(sanitized)
         except Exception as e:
-            print("❌ Error processing message:", e)
+            print("❌ Error processing message:",traceback.format_exc())
 
     # Start and keep running
     await client.start()

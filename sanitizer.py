@@ -15,25 +15,29 @@ Instructions:
 - Match each entry to a TP so that one pair has the smallest delta, one the largest, and one in between.
 - Keep SL and direction consistent.
 
-Return the output in this format and not additional text:
+Return the output in this format stricly and not additional text:
+the rsult should statisfy .json requirements
 
-* Instrument: XAUUSD
-* Signal: BUY Limit
-* Entry: 3348
-* SL: 3344
-* TP: 3353
-
-* Instrument: XAUUSD
-* Signal: BUY Limit
-* Entry: 3349
-* SL: 3344
-* TP: 3356
-
-* Instrument: XAUUSD
-* Signal: BUY Limit
-* Entry: 3350
-* SL: 3344
-* TP: 3363
+[
+  {
+    "instrument": "XAUUSD",
+    "signal": "SELL LIMIT",
+    "entry": 2363.33,
+    "sl": 2370.56,
+    "tp": 2361.38,
+    "time": "2025-07-14T15:00:00Z",
+    "source": "GoldChannel"
+  },
+  {
+    "instrument": "XAUUSD",
+    "signal": "SELL LIMIT",
+    "entry": 2365.36,
+    "sl": 2370.56,
+    "tp": 2360.38,
+    "time": "2025-07-14T15:00:00Z",
+    "source": "GoldChannel"
+  }
+]
 
 Message:
 {text}
