@@ -2,7 +2,7 @@ import asyncio
 import os
 from dotenv import load_dotenv
 load_dotenv()
-
+from filters import should_ignore_message
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import GetDialogsRequest
 from telethon.tl.types import InputPeerEmpty
@@ -60,7 +60,11 @@ async def main():
 
             message_time = event.message.date.isoformat() + 'Z'
 
+            if should_ignore_message(text):
+                print("⚠️ Ignored non-signal message.")
+            return None  # or []
             sanitized = await sanitize_with_ai(text)
+
             print("main_sanitized")
             await process_sanitized_signal(
                 sanitized,

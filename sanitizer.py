@@ -54,9 +54,7 @@ client = OpenAI(
 async def sanitize_with_ai(signal_text):
 
     try:
-        if should_ignore_message(signal_text):
-            print("⚠️ Ignored non-signal message.")
-            return None  # or []
+
         response = client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[
