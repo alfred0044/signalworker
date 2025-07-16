@@ -2,6 +2,8 @@
 import os
 
 from openai import OpenAI
+import asyncio
+
 from dotenv import load_dotenv
 from filters import should_ignore_message
 load_dotenv()
@@ -51,25 +53,32 @@ client = OpenAI(
     base_url="https://api.groq.com/openai/v1"
 )
 
+import asyncio
+
 async def sanitize_with_ai(signal_text):
-
+    print("🧼 Starting AI sanitization...")
     try:
+        # Wrap blocking call in a function
+        def blocking_call():
+            return client.chat.completions.create(
+                model="llama3-70b-8192",
+                messages=[
+                    {"role": "system", "content": prompt_template},
+                    {"role": "user", "content": signal_text}
+                ],
+                temperature=0.1
+            )
 
-        response = client.chat.completions.create(
-            model="llama3-70b-8192",
-            messages=[
-                {
-                    "role": "system",
-                    "content": prompt_template
-                },
-                {
-                    "role": "user",
-                    "content": signal_text
-                }
-            ],
-            temperature=0.1
-        )
+        # Add timeout here (10 seconds, adjust as needed)
+        response = await asyncio.wait_for(asyncio.to_thread(blocking_call), timeout=10)
+
+        print("✅ AI sanitization complete.")
         return response.choices[0].message.content.strip()
+
+    except asyncio.TimeoutError:
+        print("⏱️ AI sanitization timed out.")
+        return signal_text  # Fallback
+
     except Exception as e:
         print("❌ AI sanitization failed:", e)
-        return signal_text  # fallback
+        return signal_text  # Fallback

@@ -52,6 +52,7 @@ async def main():
             return
 
         try:
+            print("main_sanitized")
             source_name = event.chat.title if event.chat and hasattr(event.chat, 'title') else "Unknown"
             message_link = None
 
@@ -62,10 +63,12 @@ async def main():
 
             if should_ignore_message(text):
                 print("⚠️ Ignored non-signal message.")
-            return None  # or []
-            sanitized = await sanitize_with_ai(text)
+                return None  # or []
 
             print("main_sanitized")
+            sanitized = await sanitize_with_ai(text)
+
+
             await process_sanitized_signal(
                 sanitized,
                 source=source_name,
