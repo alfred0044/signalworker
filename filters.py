@@ -10,8 +10,9 @@ def should_ignore_message(text: str) -> bool:
     text = text.lower().strip()
 
     # ✅ Must contain SL and TP info
-    has_sl = re.search(r'\b(sl|stop\s*loss|🔴)\b', text)
-    has_tp = re.search(r'\b(tp|take\s*profit|🟢)\b', text)
+    has_sl = re.search(r'\b(sl|stop\s*loss|🔴)\b', text, re.IGNORECASE)
+    has_tp = re.search(r'\b(tp\d*|take\s*profit|🟢)\b', text, re.IGNORECASE)
+
     if not (has_sl and has_tp):
         print("🛑 Ignoring: missing SL or TP.")
         return True
