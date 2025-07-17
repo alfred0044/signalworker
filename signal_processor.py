@@ -2,7 +2,7 @@ from datetime import datetime
 import json
 import time
 import traceback
-
+import uuid
 import requests
 from dropbox_writer import upload_signal_to_dropbox
 from utils import split_signals, log_to_google_sheets
@@ -22,9 +22,10 @@ async def process_sanitized_signal(text: str, source: str = "Unknown", link: str
     if not isinstance(signal_json, dict) or "signals" not in signal_json:
         print("❌ Invalid signal format. Expected top-level 'signals' key.")
         return
-
+    signalid = int(uuid.uuid4())
     for item in signal_json["signals"]:
         item["source"] = source
+        item["signalid"] = signalid
 
         dt = timestamp or datetime.utcnow()
         if isinstance(dt, str):
