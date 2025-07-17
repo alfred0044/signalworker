@@ -13,24 +13,38 @@ TARGET_CHANNEL_ID = int(os.getenv("TARGET_CHAT_ID"))
 API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
 async def process_sanitized_signal(text: str, source: str = "Unknown", link: str = None, timestamp: str = None):
-    signal = text.upper()
-    signal_data = json.loads(signal)
+    try:
+        signal_json = json.loads(text)  # ✅ Removed .upper()
+    except json.JSONDecodeError:
+        print("❌ Invalid JSON format.")
+        return
 
-    for item in signal_data:
-        item["SOURCE"] = source
-        item["TIME"] = timestamp or datetime.utcnow().isoformat() + 'Z'
+    if not isinstance(signal_json, dict) or "signals" not in signal_json:
+        print("❌ Invalid signal format. Expected top-level 'signals' key.")
+        return
+
+    for item in signal_json["signals"]:
+        item["source"] = source
+
+        dt = timestamp or datetime.utcnow()
+        if isinstance(dt, str):
+            try:
+                dt = datetime.fromisoformat(dt.replace("Z", "").replace("+00:00", ""))
+            except:
+                dt = datetime.utcnow()
+
+        item["time"] = dt.strftime("%Y-%m-%d %H:%M:%S")
+
         if link:
-            item["LINK"] = link
+            item["link"] = link
 
     try:
         requests.post(f"{API_URL}/sendMessage", json={
             "chat_id": TARGET_CHANNEL_ID,
-            "text": json.dumps(signal_data, indent=2)
+            "text": json.dumps(signal_json, indent=2)
         })
 
-        upload_signal_to_dropbox(signal_data)
+        upload_signal_to_dropbox(signal_json)
         print("✅ Signal processed and logged.")
     except Exception as e:
         print("❌ Error sending or logging signal:", traceback.format_exc())
-
-
