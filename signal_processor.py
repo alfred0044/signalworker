@@ -12,6 +12,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN")
 TARGET_CHANNEL_ID = int(os.getenv("TARGET_CHAT_ID"))
 API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
+
 async def process_sanitized_signal(text: str, source: str = "Unknown", link: str = None, timestamp: str = None):
     try:
         signal_json = json.loads(text)  # ✅ Removed .upper()
