@@ -21,7 +21,8 @@ Instructions:
 Return the output in this format stricly and not additional text:
 the rsult should statisfy .json requirements
 
-[
+{
+"signals": [
   {
     "instrument": "XAUUSD",
     "signal": "SELL LIMIT",
@@ -40,7 +41,8 @@ the rsult should statisfy .json requirements
     "time": "2025-07-14T15:00:00Z",
     "source": "GoldChannel"
   }
-]
+  ]
+}
 
 Message:
 {text}
@@ -73,6 +75,7 @@ async def sanitize_with_ai(signal_text):
         response = await asyncio.wait_for(asyncio.to_thread(blocking_call), timeout=10)
 
         print("✅ AI sanitization complete.")
+        print(response.choices[0].message.content.strip())
         return response.choices[0].message.content.strip()
 
     except asyncio.TimeoutError:

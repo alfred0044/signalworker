@@ -9,13 +9,15 @@ import re
 def should_ignore_message(text: str) -> bool:
     text = text.lower().strip()
 
-    # ✅ Must contain SL and TP info
-    has_sl = re.search(r'\b(sl|stop\s*loss|🔴)\b', text, re.IGNORECASE)
-    has_tp = re.search(r'\b(tp\d*|take\s*profit|🟢)\b', text, re.IGNORECASE)
+    # Accepts "sl", "sl1234", "sl: 1234", "stop loss", etc
+    has_sl = re.search(r'sl[\s:]*\d+', text) or re.search(r'stop\s*loss', text)
+    # Accepts "tp1", "tp2: $3350", etc
+    has_tp = re.search(r'tp\d*[\s:]*[\$\d]+', text) or re.search(r'take\s*profit', text)
 
     if not (has_sl and has_tp):
         print("🛑 Ignoring: missing SL or TP.")
         return True
+
 
     # ✅ Blacklist phrases
     blacklist_keywords = [
@@ -25,8 +27,9 @@ def should_ignore_message(text: str) -> bool:
         "signal in play", "closed in profit", "floating",
         "summary", "recap", "performance", "winrate", "win rate",
         "today's trades", "we’ve just closed out", "total of", "lot size",
-        "scalping", "pips in a day", "dollar profit", "$", "trade signals were shared",
-        "incredible day", "signals reached", "signals missed"
+        "scalping", "pips in a day", "dollar profit",  # <-- keep this!
+        # "$",   <-- REMOVE THIS LINE
+        "trade signals were shared", "incredible day", "signals reached", "signals missed"
     ]
     for word in blacklist_keywords:
         if word in text:
@@ -41,10 +44,11 @@ def should_ignore_message(text: str) -> bool:
         r'^(buy|sell)[\s\S]{0,20}:\s*\+?\d+\s*pips?',
         r'\b\d{1,3}%\s*win\s*rate\b',
         r'\b\d+\s*trade(s)?\s*(shared|executed|given)\b',
-        r'\$\d+',  # Mentions of $ amounts
+        # r'\$\d+',  # <--- REMOVE OR COMMENT OUT THIS LINE
         r'\d+\s*pips\s*(in\s*(a|one)?\s*day)?',
         r'\d+\)\s*(buy|sell)'  # List-style numbering of trades
     ]
+
     for pattern in update_patterns:
         if re.search(pattern, text):
             print(f"🛑 Ignoring: matched pattern '{pattern}'")
