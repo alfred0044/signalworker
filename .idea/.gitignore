@@ -1,3 +1,6 @@
 # Default ignored files
 /shelf/
 /workspace.xml
+*.session
+*.session.b64
+*.env
