@@ -16,6 +16,7 @@ def should_ignore_message(text: str) -> bool:
 
     if not (has_sl and has_tp):
         print("🛑 Ignoring: missing SL or TP.")
+        log_skipped_signal("Ignoring: missing SL or TP", text);
         return True
 
 
@@ -34,6 +35,7 @@ def should_ignore_message(text: str) -> bool:
     for word in blacklist_keywords:
         if word in text:
             print(f"🛑 Ignoring: matched blacklist keyword '{word}'")
+            log_skipped_signal(f"🛑 Ignoring: matched blacklist keyword '{word}'",message );
             return True
 
     # ✅ Heuristic patterns for performance summaries
@@ -52,6 +54,7 @@ def should_ignore_message(text: str) -> bool:
     for pattern in update_patterns:
         if re.search(pattern, text):
             print(f"🛑 Ignoring: matched pattern '{pattern}'")
+            log_skipped_signal("No TP detected", text)
             return True
 
     print("✅ Message accepted as potential signal.")

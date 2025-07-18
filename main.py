@@ -63,6 +63,7 @@ async def main():
 
             if should_ignore_message(text):
                 print("⚠️ Ignored non-signal message.")
+
                 return None  # or []
 
             print("main_sanitized")
