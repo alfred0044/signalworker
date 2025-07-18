@@ -17,9 +17,13 @@ Instructions:
 - Match each entry to a TP so that one pair has the smallest delta, one the largest, and one in between.
 - Keep SL and direction consistent.
 - SL and TP must be present int the input. No inference allowed
-
-Return the output in this format stricly and not additional text:
-the rsult should statisfy .json requirements
+- For BUY signals: Assign only TPs greater than each entry and greater than SL.
+- For SELL signals: Assign only TPs less than each entry and less than SL.
+- Each entry-TP pair must have a strictly logical direction: no buy entry may have TP below its entry or below its SL (and vice versa for sell).
+- Ignore or exclude any TP labeled "Open".
+- Output only valid pairs as per these rules; discard illogical matches.
+- Return the output in this format stricly and not additional text:
+- the rsult should statisfy .json requirements
 
 {
 "signals": [
