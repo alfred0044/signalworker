@@ -21,4 +21,4 @@ if not os.path.exists(SESSION_NAME) and os.path.exists(SESSION_B64):
     print("✅ Session file decoded.")
 
 def get_client() -> TelegramClient:
-    return TelegramClient(SESSION_NAME, API_ID, API_HASH)
+    return TelegramClient(SESSION_PATH, API_ID, API_HASH)

@@ -15,30 +15,36 @@ import traceback
 
 
 
-# Load environment variables
-
-# Load channel IDs from environment
-SOURCE_CHANNEL_IDS = [int(cid) for cid in os.getenv("SOURCE_CHANNEL_IDS", "").split(',') if cid.strip()]
-
-API_ID = int(os.getenv("TELEGRAM_API_ID"))
-API_HASH = os.getenv("TELEGRAM_API_HASH")
-ENVIRONMENT = os.getenv("ENVIRONMENT", "test")  # e.g., 'test' or 'prod'
-
-# Set session file name based on environment
+# Load environment
+ENVIRONMENT = os.getenv("ENVIRONMENT", "test")  # 'prod', 'test', etc.
 SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
 SESSION_B64 = f"{SESSION_NAME}.b64"
 
-print(f"{SESSION_NAME}.b64")
-# Decode .b64 to .session if not already decoded
-if not os.path.exists(SESSION_NAME) and os.path.exists(SESSION_B64):
-    print(f"🔐 Decoding session file for {ENVIRONMENT}...")
-    with open(SESSION_B64, "rb") as f_in, open(SESSION_NAME, "wb") as f_out:
-        f_out.write(base64.b64decode(f_in.read()))
-    print("✅ Session file decoded.")
-print(os.path.exists(SESSION_NAME))
-print(os.path.exists(SESSION_B64))
+TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID"))
+TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
+SOURCE_CHANNEL_IDS = os.getenv("SOURCE_CHANNEL_IDS")
+
+# Use volume path for prod, local path otherwise
+SESSION_DIRECTORY = "/data" if ENVIRONMENT == "prod" else "."
+SESSION_PATH = os.path.join(SESSION_DIRECTORY, SESSION_NAME)
+SESSION_B64_PATH = os.path.join(SESSION_DIRECTORY, SESSION_B64)
+
+# Decode session from .b64 -> .session ONLY on prod
+if ENVIRONMENT == "prod":
+    if not os.path.exists(SESSION_PATH):
+        if os.path.exists(SESSION_B64_PATH):
+            print(f"🔐 Decoding session file from {SESSION_B64_PATH}...")
+            with open(SESSION_B64_PATH, "rb") as f_in, open(SESSION_PATH, "wb") as f_out:
+                f_out.write(base64.b64decode(f_in.read()))
+            print("✅ Session file decoded to", SESSION_PATH)
+        else:
+            print(f"❌ No .session or .b64 file found in /data for prod environment.")
+    else:
+        print(f"✅ Using existing session file at {SESSION_PATH}")
+else:
+    print(f"🧪 ENV={ENVIRONMENT} - Using local session file at {SESSION_PATH}, skipping .b64 decoding.")
 def get_client() -> TelegramClient:
-    return TelegramClient(SESSION_NAME, API_ID, API_HASH)
+    return TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH)
 async def main():
     # Get a properly initialized client
     client = get_client()

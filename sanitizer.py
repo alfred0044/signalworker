@@ -22,8 +22,10 @@ Instructions:
 - Each entry-TP pair must have a strictly logical direction: no buy entry may have TP below its entry or below its SL (and vice versa for sell).
 - Ignore or exclude any TP labeled "Open".
 - Output only valid pairs as per these rules; discard illogical matches.
-- Return the output in this format stricly and not additional text:
+- Return the .json output in this format stricly and not additional text such as "Here is the parsed signal message in the required format:"
 - the rsult should statisfy .json requirements
+- only allow SELL LIMIT and BUY LIMIT as ordertypes
+- ensure that all each individual signal are is part fo the "signals": [] array
 
 {
 "signals": [
