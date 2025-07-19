@@ -14,11 +14,6 @@ SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
 SESSION_B64 = f"{SESSION_NAME}.b64"
 
 # Decode .b64 to .session if not already decoded
-if not os.path.exists(SESSION_NAME) and os.path.exists(SESSION_B64):
-    print(f"🔐 Decoding session file for {ENVIRONMENT}...")
-    with open(SESSION_B64, "rb") as f_in, open(SESSION_NAME, "wb") as f_out:
-        f_out.write(base64.b64decode(f_in.read()))
-    print("✅ Session file decoded.")
 
 def get_client() -> TelegramClient:
     return TelegramClient(SESSION_PATH, API_ID, API_HASH)
