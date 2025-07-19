@@ -1,33 +1,49 @@
 import asyncio
-import os
+import base64
 from dotenv import load_dotenv
 load_dotenv()
 from filters import should_ignore_message
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import GetDialogsRequest
 from telethon.tl.types import InputPeerEmpty
-from datetime import datetime
 from filters import is_trade_signal
 from sanitizer import sanitize_with_ai
 from signal_processor import process_sanitized_signal
 from client_factory import get_client
 import traceback
-
-
+import os
+import sys
 
 # Load environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "test")  # 'prod', 'test', etc.
-SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
-SESSION_B64 = f"{SESSION_NAME}.b64"
-
 TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID"))
 TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
 SOURCE_CHANNEL_IDS = os.getenv("SOURCE_CHANNEL_IDS")
 
 # Use volume path for prod, local path otherwise
 SESSION_DIRECTORY = "/data" if ENVIRONMENT == "prod" else "."
+LOCAL_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+ENVIRONMENT = os.getenv("ENVIRONMENT", "test")
+
+SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
 SESSION_PATH = os.path.join(SESSION_DIRECTORY, SESSION_NAME)
+
+SESSION_B64 = f"{SESSION_NAME}.b64"
 SESSION_B64_PATH = os.path.join(SESSION_DIRECTORY, SESSION_B64)
+
+
+if ENVIRONMENT == "prod":
+    if sys.platform.startswith('win'):
+        # Running locally on Windows (dev/prod)
+        SESSION_DIRECTORY = LOCAL_DATA_DIR
+        print(f"hallo welt{SESSION_DIRECTORY}")
+    else:
+        # Linux/Production Server (Railway, etc.)
+        SESSION_DIRECTORY = "/data"
+else:
+    # Non-prod is always local directory
+    SESSION_DIRECTORY = "."
+
 
 # Decode session from .b64 -> .session ONLY on prod
 if ENVIRONMENT == "prod":
@@ -36,19 +52,22 @@ if ENVIRONMENT == "prod":
             print(f"🔐 Decoding session file from {SESSION_B64_PATH}...")
             with open(SESSION_B64_PATH, "rb") as f_in, open(SESSION_PATH, "wb") as f_out:
                 f_out.write(base64.b64decode(f_in.read()))
-            print("✅ Session file decoded to", SESSION_PATH)
+            print("✅ Session file decoded.")
         else:
-            print(f"❌ No .session or .b64 file found in /data for prod environment.")
+            print(f"❌ .b64 session not found at {SESSION_B64_PATH}")
     else:
-        print(f"✅ Using existing session file at {SESSION_PATH}")
+        print(f"✅ Session file found at {SESSION_PATH}")
 else:
     print(f"🧪 ENV={ENVIRONMENT} - Using local session file at {SESSION_PATH}, skipping .b64 decoding.")
+
+
 def get_client() -> TelegramClient:
     return TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH)
+
+
 async def main():
     # Get a properly initialized client
     client = get_client()
-
 
     # Define the handler INSIDE main to ensure `client` is valid
     @client.on(events.NewMessage(chats=SOURCE_CHANNEL_IDS))
@@ -74,7 +93,6 @@ async def main():
 
             print("main_sanitized")
             sanitized = await sanitize_with_ai(text)
-
 
             await process_sanitized_signal(
                 sanitized,
@@ -108,12 +126,12 @@ async def main():
     print("✅ Client started and listening for new messages.")
     # Optional: fetch dialogs for testing
 
-
     # Optionally print dialog names
     # for dialog in dialogs.chats:
     #     print(f"{dialog.id}: {dialog.title}")
 
     await client.run_until_disconnected()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
