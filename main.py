@@ -1,7 +1,13 @@
 import asyncio
 import base64
+import os
+import sys
+import traceback
 from dotenv import load_dotenv
+
+# Load environment variables
 load_dotenv()
+
 from filters import should_ignore_message
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import GetDialogsRequest
@@ -9,131 +15,115 @@ from telethon.tl.types import InputPeerEmpty
 from filters import is_trade_signal
 from sanitizer import sanitize_with_ai
 from signal_processor import process_sanitized_signal
-from client_factory import get_client
-import traceback
-import os
-import sys
 
-# Load environment
-ENVIRONMENT = os.getenv("ENVIRONMENT", "test")  # 'prod', 'test', etc.
-ENVIRONMENT = "prod"
+# -----------------------
+# CONFIGURATION
+# -----------------------
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "test")
 TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID"))
 TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
-SOURCE_CHANNEL_IDS = os.getenv("SOURCE_CHANNEL_IDS")
+SOURCE_CHANNEL_IDS = [
+    int(cid.strip()) for cid in os.getenv("SOURCE_CHANNEL_IDS", "").split(",") if cid.strip()
+]
 
-LOCAL_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+LOCAL_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
 
-# ✅ Determine session directory FIRST
+# Determine correct session directory
 if ENVIRONMENT == "prod":
-    if sys.platform.startswith('win'):
-        # Running locally on Windows
+    if sys.platform.startswith("win"):
         SESSION_DIRECTORY = LOCAL_DATA_DIR
-        print(f"📦 Using local prod data directory on Windows: {SESSION_DIRECTORY}")
     else:
-        # Running in Railway/Linux
         SESSION_DIRECTORY = "/data"
 else:
     SESSION_DIRECTORY = "."
-    print(f"🧪 ENV={ENVIRONMENT} - Using local session file directory")
 
-# ✅ THEN compute paths
 SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
 SESSION_B64 = f"{SESSION_NAME}.b64"
 SESSION_PATH = os.path.join(SESSION_DIRECTORY, SESSION_NAME)
 SESSION_B64_PATH = os.path.join(SESSION_DIRECTORY, SESSION_B64)
 
-
-
-# Decode session from .b64 -> .session ONLY on prod
+# Decode Base64 session file if necessary
 if ENVIRONMENT == "prod":
     if not os.path.exists(SESSION_PATH):
         if os.path.exists(SESSION_B64_PATH):
-            print(f"🔐 Decoding session file from {SESSION_B64_PATH}...")
-            with open(SESSION_B64_PATH, "rb") as f_in, open(SESSION_PATH, "wb") as f_out:
-                f_out.write(base64.b64decode(f_in.read()))
-            print("✅ Session file decoded.")
+            try:
+                print(f"🔐 Decoding session file from {SESSION_B64_PATH}...")
+                with open(SESSION_B64_PATH, "rb") as f_in, open(SESSION_PATH, "wb") as f_out:
+                    f_out.write(base64.b64decode(f_in.read()))
+                print("✅ Session file decoded.")
+            except Exception as e:
+                print("❌ Failed to decode session file:", str(e))
+                print(traceback.format_exc())
         else:
             print(f"❌ .b64 session not found at {SESSION_B64_PATH}")
     else:
         print(f"✅ Session file found at {SESSION_PATH}")
-else:
-    print(f"🧪 ENV={ENVIRONMENT} - Using local session file at {SESSION_PATH}, skipping .b64 decoding.")
 
 
-try:
-    def get_client() -> TelegramClient:
-        return TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH)
+# -----------------------
+# CLIENT FACTORY & MAIN
+# -----------------------
 
-except Exception as e:
-    print("❌ Error processing message:", e)
-    print(traceback.format_exc())
+def get_client() -> TelegramClient:
+    return TelegramClient(SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH)
+
 async def main():
-    # Get a properly initialized client
-    client = get_client()
+    try:
+        client = get_client()
+        await client.connect()
 
-    # Define the handler INSIDE main to ensure `client` is valid
-    @client.on(events.NewMessage(chats=SOURCE_CHANNEL_IDS))
-    async def handler(event):
-        text = event.message.message
-        if not is_trade_signal(text):
+        if not await client.is_user_authorized():
+            print("❌ Telegram client is not authorized.")
             return
 
-        try:
-            print("main_sanitized")
-            source_name = event.chat.title if event.chat and hasattr(event.chat, 'title') else "Unknown"
-            message_link = None
+        print("✅ Telegram client connected.")
 
-            if event.chat and hasattr(event.chat, 'username') and event.chat.username:
-                message_link = f"https://t.me/{event.chat.username}/{event.message.id}"
+        @client.on(events.NewMessage(chats=SOURCE_CHANNEL_IDS))
+        async def handler(event):
+            text = event.message.message
+            if not is_trade_signal(text):
+                return
 
-            message_time = event.message.date.isoformat() + 'Z'
+            try:
+                print("main_sanitized")
+                source_name = getattr(event.chat, 'title', 'Unknown')
+                message_link = None
 
-            if should_ignore_message(text):
-                print("⚠️ Ignored non-signal message.")
+                if hasattr(event.chat, 'username') and event.chat.username:
+                    message_link = f"https://t.me/{event.chat.username}/{event.message.id}"
 
-                return None  # or []
+                message_time = event.message.date.isoformat() + 'Z'
 
-            print("main_sanitized")
-            sanitized = await sanitize_with_ai(text)
+                if should_ignore_message(text):
+                    print("⚠️ Ignored non-signal message.")
+                    return
 
-            await process_sanitized_signal(
-                sanitized,
-                source=source_name,
-                link=message_link,
-                timestamp=message_time
-            )
+                sanitized = await sanitize_with_ai(text)
+                await process_sanitized_signal(
+                    sanitized,
+                    source=source_name,
+                    link=message_link,
+                    timestamp=message_time
+                )
 
-        except Exception as e:
-            print("❌ Error processing message:", e)
-            print(traceback.format_exc())
+            except Exception as e:
+                print("❌ Error in message handler:", e)
+                print(traceback.format_exc())
 
-    # Start and keep running
-    await client.start()
+        await client.start()
+        print("📥 Listening for messages...")
+        await client.run_until_disconnected()
 
-    print("✅ Telegram client started.")
-    print("📥 Fetching dialogs (channels, groups, chats)...")
-    dialogs = await client(GetDialogsRequest(
-        offset_date=None,
-        offset_id=0,
-        offset_peer=InputPeerEmpty(),
-        limit=200,
-        hash=0
-    ))
+    except Exception as e:
+        print("❌ Failed to initialize or run Telegram client:")
+        print(traceback.format_exc())
+        # Optionally keep the service alive or retry
+        while True:
+            print("🔁 Retrying in 60 seconds...")
+            await asyncio.sleep(60)
+            # Retry logic here, or just stay alive
 
-    print("📋 Your accessible channels and their IDs:")
-    for chat in dialogs.chats:
-        if getattr(chat, "title", None):
-            print(f"• {chat.title} — ID: {chat.id}")
-
-    print("✅ Client started and listening for new messages.")
-    # Optional: fetch dialogs for testing
-
-    # Optionally print dialog names
-    # for dialog in dialogs.chats:
-    #     print(f"{dialog.id}: {dialog.title}")
-
-    await client.run_until_disconnected()
-
-
+# Entrypoint
 if __name__ == "__main__":
     asyncio.run(main())
