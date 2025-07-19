@@ -20,29 +20,27 @@ TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID"))
 TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
 SOURCE_CHANNEL_IDS = os.getenv("SOURCE_CHANNEL_IDS")
 
-# Use volume path for prod, local path otherwise
-SESSION_DIRECTORY = "/data" if ENVIRONMENT == "prod" else "."
 LOCAL_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
-ENVIRONMENT = os.getenv("ENVIRONMENT", "test")
 
-SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
-SESSION_PATH = os.path.join(SESSION_DIRECTORY, SESSION_NAME)
-
-SESSION_B64 = f"{SESSION_NAME}.b64"
-SESSION_B64_PATH = os.path.join(SESSION_DIRECTORY, SESSION_B64)
-
-
+# ✅ Determine session directory FIRST
 if ENVIRONMENT == "prod":
     if sys.platform.startswith('win'):
-        # Running locally on Windows (dev/prod)
+        # Running locally on Windows
         SESSION_DIRECTORY = LOCAL_DATA_DIR
-        print(f"hallo welt{SESSION_DIRECTORY}")
+        print(f"📦 Using local prod data directory on Windows: {SESSION_DIRECTORY}")
     else:
-        # Linux/Production Server (Railway, etc.)
+        # Running in Railway/Linux
         SESSION_DIRECTORY = "/data"
 else:
-    # Non-prod is always local directory
     SESSION_DIRECTORY = "."
+    print(f"🧪 ENV={ENVIRONMENT} - Using local session file directory")
+
+# ✅ THEN compute paths
+SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
+SESSION_B64 = f"{SESSION_NAME}.b64"
+SESSION_PATH = os.path.join(SESSION_DIRECTORY, SESSION_NAME)
+SESSION_B64_PATH = os.path.join(SESSION_DIRECTORY, SESSION_B64)
+
 
 
 # Decode session from .b64 -> .session ONLY on prod
