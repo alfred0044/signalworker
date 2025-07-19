@@ -16,6 +16,7 @@ import sys
 
 # Load environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "test")  # 'prod', 'test', etc.
+ENVIRONMENT = "prod"
 TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID"))
 TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
 SOURCE_CHANNEL_IDS = os.getenv("SOURCE_CHANNEL_IDS")
@@ -59,10 +60,13 @@ else:
     print(f"🧪 ENV={ENVIRONMENT} - Using local session file at {SESSION_PATH}, skipping .b64 decoding.")
 
 
-def get_client() -> TelegramClient:
-    return TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH)
+try:
+    def get_client() -> TelegramClient:
+        return TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH)
 
-
+except Exception as e:
+    print("❌ Error processing message:", e)
+    print(traceback.format_exc())
 async def main():
     # Get a properly initialized client
     client = get_client()
