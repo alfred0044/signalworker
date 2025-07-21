@@ -26,7 +26,7 @@ Instructions:
 - the rsult should statisfy .json requirements
 - only allow SELL LIMIT and BUY LIMIT as ordertypes
 - ensure that all each individual signal are is part fo the "signals": [] array
-
+- ensure that instrument does not contain an seperators e.g. XAUUSD over XAU/USD
 {
 "signals": [
   {
