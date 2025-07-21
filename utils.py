@@ -1,3 +1,5 @@
+from datetime import datetime
+
 
 def split_signals(text: str) -> list:
     blocks = text.strip().split("* Instrument:")
