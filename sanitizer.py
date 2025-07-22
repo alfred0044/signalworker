@@ -27,6 +27,13 @@ Instructions:
 - only allow SELL LIMIT and BUY LIMIT as ordertypes
 - ensure that all each individual signal are is part fo the "signals": [] array
 - ensure that instrument does not contain an seperators e.g. XAUUSD over XAU/USD
+- in case take profit level are provided a in PIP i.e.  TP1 = 20PIPS, TP2 = 50 PIPS calculate the absolut TP level accordingly.4
+ -Takeprofit level my also be provided as such 
+
+  SELL GOLD 3387 - 3388
+  SL : 3384
+  TP:30pips -50pips -80pips. in that cas TP1 is 30 PIPS removed from the entry, TP2 50PIPS and TP3 80PIPS. Only use absolut vaules for PIPS and set TP below entry when Signnal is a SELL and above when signal is a BUY
+  Check the common definition for PIPs in regards to the instrument and the number of digits it is traded in. 
 {
 "signals": [
   {

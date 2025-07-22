@@ -7,18 +7,29 @@ def is_trade_signal(text: str) -> bool:
 
 import re
 
+import re
+
 def should_ignore_message(text: str) -> bool:
+    original_text = text  # for logging
     text = text.lower().strip()
 
-    # Accepts "sl", "sl1234", "sl: 1234", "stop loss", etc
-    has_sl = re.search(r'sl[\s:]*\d+', text) or re.search(r'stop\s*loss', text)
-    # Accepts "tp1", "tp2: $3350", etc
-    has_tp = re.search(r'tp\d*[\s:]*[\$\d]+', text) or re.search(r'take\s*profit', text)
+    # Detect Stop Loss via common phrases
+    has_sl = re.search(r'\bsl\b[\s:]*\d+', text) or re.search(r'stop\s*loss', text)
+
+    # Detect TP via numeric values OR pip values
+    has_tp_price = re.search(r'tp\d*[\s:]*[\$\d]+', text)
+    has_tp_pips  = re.search(r'\btp\d*[\s:=+\-]*\d+\s*p[ip]*s?\b', text)  # matches "tp1: +50pips", "tp2 = 100 pip"
+    has_tp_label = re.search(r'take\s*profit', text)  # generic label
+
+    has_tp = has_tp_price or has_tp_pips or has_tp_label
 
     if not (has_sl and has_tp):
         print("🛑 Ignoring: missing SL or TP.")
-        log_skipped_signal("Ignoring: missing SL or TP", text);
-        return True
+        log_skipped_signal("Ignoring: missing SL or TP", original_text)
+        return True  # Signal should be ignored
+
+    return False  # Signal is acceptable
+
 
 
     # ✅ Blacklist phrases
