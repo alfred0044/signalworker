@@ -9,26 +9,25 @@ import re
 
 import re
 
+from datetime import datetime
+
 def should_ignore_message(text: str) -> bool:
-    original_text = text  # for logging
+    original_text = text
     text = text.lower().strip()
 
-    # Detect Stop Loss via common phrases
     has_sl = re.search(r'\bsl\b[\s:]*\d+', text) or re.search(r'stop\s*loss', text)
-
-    # Detect TP via numeric values OR pip values
     has_tp_price = re.search(r'tp\d*[\s:]*[\$\d]+', text)
-    has_tp_pips  = re.search(r'\btp\d*[\s:=+\-]*\d+\s*p[ip]*s?\b', text)  # matches "tp1: +50pips", "tp2 = 100 pip"
-    has_tp_label = re.search(r'take\s*profit', text)  # generic label
-
+    has_tp_pips  = re.search(r'\btp\d*[\s:=+\-]*\d+\s*p[ip]*s?\b', text)
+    has_tp_label = re.search(r'take\s*profit', text)
     has_tp = has_tp_price or has_tp_pips or has_tp_label
 
     if not (has_sl and has_tp):
-        print("🛑 Ignoring: missing SL or TP.")
-        log_skipped_signal("Ignoring: missing SL or TP", original_text)
-        return True  # Signal should be ignored
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"🛑 {timestamp} - Ignoring: missing SL or TP.")
+        log_skipped_signal(f"{timestamp} - Ignoring: missing SL or TP", original_text)
+        return True
 
-    return False  # Signal is acceptable
+    return False
 
 
 
