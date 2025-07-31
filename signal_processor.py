@@ -43,10 +43,16 @@ async def process_sanitized_signal(text: str, source: str = "Unknown", link: str
             item["link"] = link
         confirmation_message = format_for_confirmation(item)
     try:
-        requests.post(f"{API_URL}/sendMessage", json={
+
+        response =  requests.post(f"{API_URL}/sendMessage", json={
             "chat_id": TARGET_CHANNEL_ID,
             "text":confirmation_message
         })
+        print (response.content)
+        if response.status_code == 200:
+            print("Message sent successfully!")
+        else:
+            print(f"Failed to send message. Status code: {response.status_code}")
 
         upload_signal_to_dropbox(signal_json)
         print("✅ Signal processed and logged.")

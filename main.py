@@ -21,7 +21,7 @@ load_dotenv()
 # -----------------------
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "test")  # default to 'test' if not set
-#ENVIRONMENT = "prod"
+ENVIRONMENT = "prod"
 TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID"))
 TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
 
@@ -71,6 +71,7 @@ if ENVIRONMENT == "prod":
 else:
     print(f"ℹ️ Skipping session decoding in non-prod env.")
 
+
 # -----------------------
 # CREATE TELETHON CLIENT
 # -----------------------
@@ -78,16 +79,17 @@ else:
 def get_client() -> TelegramClient:
     return TelegramClient(SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH)
 
+
 # -----------------------
 # MAIN SERVICE LOGIC
 # -----------------------
-
 async def main():
     while True:
         try:
             print("🚀 Initializing Telegram client...")
             client = get_client()
             await client.connect()
+            await client.get_dialogs()
 
             if not await client.is_user_authorized():
                 print("❌ Telegram client not authorized. Session file may be missing or invalid.")
@@ -96,7 +98,13 @@ async def main():
                 continue
 
             print("✅ Telegram client is authorized ✔️")
-            print("📋 Watching channels:", SOURCE_CHANNEL_IDS)
+
+            dialogs = await client.get_dialogs()
+            for dialog in dialogs:
+                if abs(dialog.id) in SOURCE_CHANNEL_IDS:
+                    print(dialog.name, dialog.id, "✅")
+                else:
+                    print(dialog.name, dialog.id, "❌")
 
             @client.on(events.NewMessage(chats=SOURCE_CHANNEL_IDS))
             async def handler(event):
@@ -148,6 +156,7 @@ async def main():
             print(traceback.format_exc())
             print("🔄 Retrying in 60 seconds...")
             await asyncio.sleep(60)
+
 
 # -----------------------
 # ENTRY POINT
