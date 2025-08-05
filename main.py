@@ -21,7 +21,7 @@ load_dotenv()
 # -----------------------
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "test")  # default to 'test' if not set
-ENVIRONMENT = "prod"
+##ENVIRONMENT = "prod"
 TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID"))
 TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
 
@@ -155,7 +155,7 @@ async def main():
             print("❌ Fatal error during startup or running:")
             print(traceback.format_exc())
             print("🔄 Retrying in 60 seconds...")
-            await asyncio.sleep(60)
+            await asyncio.sleep(600)
 
 
 # -----------------------
