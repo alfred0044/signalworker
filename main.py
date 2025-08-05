@@ -38,7 +38,7 @@ if ENVIRONMENT == "prod":
         SESSION_DIRECTORY = LOCAL_DATA_DIR
         print(f"📦 Running 'prod' on Windows — session dir: {SESSION_DIRECTORY}")
     else:
-        SESSION_DIRECTORY = "/data"
+        SESSION_DIRECTORY = "/data/storage"
         print(f"📦 Running 'prod' on Linux — session dir: {SESSION_DIRECTORY}")
 else:
     SESSION_DIRECTORY = "."
