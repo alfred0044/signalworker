@@ -44,10 +44,10 @@ async def process_sanitized_signal(text: str, source: str = "Unknown", link: str
         confirmation_message = format_for_confirmation(item)
     try:
 
-        response =  requests.post(f"{API_URL}/sendMessage", json={
-            "chat_id": TARGET_CHANNEL_ID,
-            "text":confirmation_message
-        })
+    #    response =  requests.post(f"{API_URL}/sendMessage", json={
+    #        "chat_id": TARGET_CHANNEL_ID,
+    #        "text":confirmation_message
+    #    }    )
         print (response.content)
         if response.status_code == 200:
             print("Message sent successfully!")
