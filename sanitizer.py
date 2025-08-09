@@ -111,7 +111,7 @@ async def sanitize_with_ai(signal_text):
         response = await asyncio.wait_for(asyncio.to_thread(blocking_call), timeout=10)
 
         print("✅ AI sanitization complete.")
-        print(response.choices[0].message.content.strip())
+        ##print(response.choices[0].message.content.strip())
         return response.choices[0].message.content.strip()
 
     except asyncio.TimeoutError:

@@ -36,9 +36,8 @@ async def process_sanitized_signal(text: str, source: str = "Unknown", link: str
                 dt = datetime.fromisoformat(dt.replace("Z", "").replace("+00:00", ""))
             except:
                 dt = datetime.utcnow()
-
+        print(signal_json)
         item["time"] = dt.strftime("%Y-%m-%d %H:%M:%S")
-
         if link:
             item["link"] = link
         confirmation_message = format_for_confirmation(item)
@@ -48,11 +47,11 @@ async def process_sanitized_signal(text: str, source: str = "Unknown", link: str
     #        "chat_id": TARGET_CHANNEL_ID,
     #        "text":confirmation_message
     #    }    )
-        print (response.content)
-        if response.status_code == 200:
-            print("Message sent successfully!")
-        else:
-            print(f"Failed to send message. Status code: {response.status_code}")
+   #     print (response.content)
+   #     if response.status_code == 200:
+   #         print("Message sent successfully!")
+  #      else:
+  #          print(f"Failed to send message. Status code: {response.status_code}")
 
         upload_signal_to_dropbox(signal_json)
         print("✅ Signal processed and logged.")
