@@ -16,6 +16,35 @@ from signal_processor import process_sanitized_signal
 # Load environment variables
 load_dotenv()
 
+if len(sys.argv) > 1 and sys.argv[1] == "create_session":
+    from telethon.sync import TelegramClient
+    from telethon.sessions import StringSession
+
+    api_id = int(os.getenv("TELEGRAM_API_ID"))
+    api_hash = os.getenv("TELEGRAM_API_HASH")
+    session_name = "signal_splitter_prod"
+    client = TelegramClient(session_name, api_id, api_hash)
+
+
+    async def create_session():
+        await client.start()
+        print("✅ Session created and authorized!")
+
+        # Encode to base64
+        with open(f"{session_name}.session", "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("utf-8")
+
+        # Save to .b64 file
+        with open(f"{session_name}.session.b64", "w") as out:
+            out.write(b64)
+
+        print(f"📦 Saved: {session_name}.session.b64 (upload this to Railway)")
+
+    client.loop.run_until_complete(create_session())
+    print("Session created.")
+    sys.exit()
+
+
 # -----------------------
 # CONFIGURATION
 # -----------------------
