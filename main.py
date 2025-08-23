@@ -96,7 +96,7 @@ async def main():
             if not await client.is_user_authorized():
                 print("❌ Telegram client not authorized. Session file may be missing or invalid.")
                 print("🔁 Retrying in 60 seconds...")
-                await asyncio.sleep(60)
+                await asyncio.sleep(600)
                 continue
 
             print("✅ Telegram client is authorized ✔️")
