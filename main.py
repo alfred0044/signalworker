@@ -1,5 +1,6 @@
 import asyncio
 import os
+import pathlib
 import sys
 import traceback
 from dotenv import load_dotenv
@@ -29,23 +30,26 @@ TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
 SOURCE_CHANNEL_IDS = [
     int(cid.strip()) for cid in os.getenv("SOURCE_CHANNEL_IDS", "").split(",") if cid.strip()
 ]
-
 # Determine session directory based on environment
 if ENVIRONMENT == "prod":
-    # Railway Linux environment folder
+    # Railway Linux environment folder - use explicit POSIX style string
     SESSION_DIRECTORY = "/data/storage"
+    SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
+    SESSION_PATH = f"{SESSION_DIRECTORY}/{SESSION_NAME}"
 else:
-    # Local development folder
-    SESSION_DIRECTORY = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
+    # Local development folder - use pathlib for OS-agnostic paths
+    import pathlib
+    SESSION_DIRECTORY = pathlib.Path(os.path.abspath(os.path.join(os.path.dirname(__file__), "data")))
+    SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
+    SESSION_PATH = str(SESSION_DIRECTORY / SESSION_NAME)
 
-os.makedirs(SESSION_DIRECTORY, exist_ok=True)
-
-SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
-SESSION_PATH = os.path.join(SESSION_DIRECTORY, SESSION_NAME)
-
+os.makedirs(os.path.dirname(SESSION_PATH), exist_ok=True)
 print(f"SESSION_DIRECTORY: '{SESSION_DIRECTORY}'")
 print(f"SESSION_NAME: '{SESSION_NAME}'")
 print(f"SESSION_PATH: '{SESSION_PATH}'")
+
+# Use SESSION_PATH_POSIX string when passing to Telethon client to ensure correct Linux path
+
 
 # -----------------------
 # SESSION CREATION (only if create_session parameter passed)
@@ -59,7 +63,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "create_session":
     async def create_session():
         await client.start()
         print("✅ Session created and authorized!")
-        print(f"📦 Saved session file: {SESSION_PATH}")
+        print(f"📦 Saved session file at: {SESSION_PATH}")
         await client.disconnect()
 
     client.loop.run_until_complete(create_session())
@@ -80,7 +84,6 @@ else:
 
 def get_client() -> TelegramClient:
     return TelegramClient(SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH)
-
 
 async def wait_for_session():
     while not os.path.exists(SESSION_PATH):
