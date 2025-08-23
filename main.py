@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import os
 import sys
 import traceback
@@ -16,41 +15,13 @@ from signal_processor import process_sanitized_signal
 # Load environment variables
 load_dotenv()
 
-if len(sys.argv) > 1 and sys.argv[1] == "create_session":
-    from telethon.sync import TelegramClient
-    from telethon.sessions import StringSession
-
-    api_id = int(os.getenv("TELEGRAM_API_ID"))
-    api_hash = os.getenv("TELEGRAM_API_HASH")
-    session_name = "signal_splitter_prod"
-    client = TelegramClient(session_name, api_id, api_hash)
-
-
-    async def create_session():
-        await client.start()
-        print("✅ Session created and authorized!")
-
-        # Encode to base64
-        with open(f"{session_name}.session", "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("utf-8")
-
-        # Save to .b64 file
-        with open(f"{session_name}.session.b64", "w") as out:
-            out.write(b64)
-
-        print(f"📦 Saved: {session_name}.session.b64 (upload this to Railway)")
-
-    client.loop.run_until_complete(create_session())
-    print("Session created.")
-    sys.exit()
-
-
 # -----------------------
 # CONFIGURATION
 # -----------------------
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "test")  # default to 'test' if not set
-ENVIRONMENT = "prod"
+ENVIRONMENT = "prod"  # override as needed
+
 TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID"))
 TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
 
@@ -61,7 +32,7 @@ SOURCE_CHANNEL_IDS = [
 
 LOCAL_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
 
-# Determine correct session directory
+# Determine session directory based on environment and platform
 if ENVIRONMENT == "prod":
     if sys.platform.startswith("win"):
         SESSION_DIRECTORY = LOCAL_DATA_DIR
@@ -74,44 +45,46 @@ else:
     print(f"🧪 Running in environment '{ENVIRONMENT}' — using local session dir.")
 
 SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
-SESSION_B64 = f"{SESSION_NAME}.b64"
 SESSION_PATH = os.path.join(SESSION_DIRECTORY, SESSION_NAME)
-SESSION_B64_PATH = os.path.join(SESSION_DIRECTORY, SESSION_B64)
 
 # -----------------------
-# SESSION FILE HANDLING
+# SESSION CREATION (only if create_session parameter passed)
 # -----------------------
 
-if ENVIRONMENT == "prod":
-    if not os.path.exists(SESSION_PATH):
-        if os.path.exists(SESSION_B64_PATH):
-            try:
-                print(f"🔐 Decoding session from: {SESSION_B64_PATH}...")
-                with open(SESSION_B64_PATH, "rb") as f_in, open(SESSION_PATH, "wb") as f_out:
-                    f_out.write(base64.b64decode(f_in.read()))
-                print("✅ Session file decoded successfully.")
-            except Exception as e:
-                print("❌ Failed to decode session file:", e)
-                print(traceback.format_exc())
-        else:
-            print(f"❌ .b64 session not found at {SESSION_B64_PATH}")
-    else:
-        print(f"✅ Session file found at {SESSION_PATH}")
+if len(sys.argv) > 1 and sys.argv[1] == "create_session":
+    from telethon.sync import TelegramClient
+
+    client = TelegramClient(SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH)
+
+    async def create_session():
+        await client.start()
+        print("✅ Session created and authorized!")
+        print(f"📦 Saved session file: {SESSION_PATH}")
+        await client.disconnect()
+
+    client.loop.run_until_complete(create_session())
+    sys.exit()
+
+# -----------------------
+# VERIFY SESSION FILE PRESENCE
+# -----------------------
+
+if not os.path.exists(SESSION_PATH):
+    print(f"❌ Session file not found at {SESSION_PATH}. Please create session using 'create_session' option.")
 else:
-    print(f"ℹ️ Skipping session decoding in non-prod env.")
-
+    print(f"✅ Session file found at {SESSION_PATH}")
 
 # -----------------------
-# CREATE TELETHON CLIENT
+# TELETHON CLIENT FACTORY
 # -----------------------
 
 def get_client() -> TelegramClient:
     return TelegramClient(SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH)
 
-
 # -----------------------
 # MAIN SERVICE LOGIC
 # -----------------------
+
 async def main():
     while True:
         try:
@@ -180,12 +153,11 @@ async def main():
 
             await client.run_until_disconnected()
 
-        except Exception as e:
+        except Exception:
             print("❌ Fatal error during startup or running:")
             print(traceback.format_exc())
             print("🔄 Retrying in 60 seconds...")
-            await asyncio.sleep(600)
-
+            await asyncio.sleep(60)
 
 # -----------------------
 # ENTRY POINT
