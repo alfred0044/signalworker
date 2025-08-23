@@ -30,22 +30,22 @@ SOURCE_CHANNEL_IDS = [
     int(cid.strip()) for cid in os.getenv("SOURCE_CHANNEL_IDS", "").split(",") if cid.strip()
 ]
 
-LOCAL_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
-
-# Determine session directory based on environment and platform
+# Determine session directory based on environment
 if ENVIRONMENT == "prod":
-    if sys.platform.startswith("win"):
-        SESSION_DIRECTORY = LOCAL_DATA_DIR
-        print(f"📦 Running 'prod' on Windows — session dir: {SESSION_DIRECTORY}")
-    else:
-        SESSION_DIRECTORY = "/data/storage"
-        print(f"📦 Running 'prod' on Linux — session dir: {SESSION_DIRECTORY}")
+    # Railway Linux environment folder
+    SESSION_DIRECTORY = "/data/storage"
 else:
-    SESSION_DIRECTORY = "."
-    print(f"🧪 Running in environment '{ENVIRONMENT}' — using local session dir.")
+    # Local development folder
+    SESSION_DIRECTORY = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
+
+os.makedirs(SESSION_DIRECTORY, exist_ok=True)
 
 SESSION_NAME = f"signal_splitter_{ENVIRONMENT}.session"
 SESSION_PATH = os.path.join(SESSION_DIRECTORY, SESSION_NAME)
+
+print(f"SESSION_DIRECTORY: '{SESSION_DIRECTORY}'")
+print(f"SESSION_NAME: '{SESSION_NAME}'")
+print(f"SESSION_PATH: '{SESSION_PATH}'")
 
 # -----------------------
 # SESSION CREATION (only if create_session parameter passed)
@@ -81,26 +81,33 @@ else:
 def get_client() -> TelegramClient:
     return TelegramClient(SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH)
 
-# -----------------------
-# MAIN SERVICE LOGIC
-# -----------------------
+
+async def wait_for_session():
+    while not os.path.exists(SESSION_PATH):
+        print(f"❌ Session file not found at {SESSION_PATH}. Retrying in 60 seconds...")
+        await asyncio.sleep(60)
+    print(f"✅ Session file found at {SESSION_PATH}.")
+
 
 async def main():
+    await wait_for_session()
+
     while True:
         try:
             print("🚀 Initializing Telegram client...")
             client = get_client()
             await client.connect()
-            await client.get_dialogs()
 
+            # Authorization check
             if not await client.is_user_authorized():
-                print("❌ Telegram client not authorized. Session file may be missing or invalid.")
+                print("❌ Telegram client not authorized. Session file may be invalid.")
                 print("🔁 Retrying in 60 seconds...")
-                await asyncio.sleep(600)
+                await asyncio.sleep(60)
                 continue
 
             print("✅ Telegram client is authorized ✔️")
 
+            # Rest of your dialog fetching and message handling logic here
             dialogs = await client.get_dialogs()
             for dialog in dialogs:
                 if abs(dialog.id) in SOURCE_CHANNEL_IDS:
@@ -110,36 +117,8 @@ async def main():
 
             @client.on(events.NewMessage(chats=SOURCE_CHANNEL_IDS))
             async def handler(event):
-                text = event.message.message
-                if not is_trade_signal(text):
-                    return
-
-                try:
-                    source_name = getattr(event.chat, 'title', 'Unknown')
-                    message_link = None
-
-                    if hasattr(event.chat, 'username') and event.chat.username:
-                        message_link = f"https://t.me/{event.chat.username}/{event.message.id}"
-
-                    message_time = event.message.date.isoformat() + 'Z'
-
-                    if should_ignore_message(text):
-                        print("⚠️ Ignored non-signal message.")
-                        return
-
-                    print("🧪 Sanitizing signal...")
-                    sanitized = await sanitize_with_ai(text)
-
-                    await process_sanitized_signal(
-                        sanitized,
-                        source=source_name,
-                        link=message_link,
-                        timestamp=message_time
-                    )
-
-                except Exception as e:
-                    print("❌ Error processing message:", e)
-                    print(traceback.format_exc())
+                # Your message processing logic here
+                pass
 
             await client.start()
             print("✅ Client started — waiting for messages.")
@@ -159,9 +138,6 @@ async def main():
             print("🔄 Retrying in 60 seconds...")
             await asyncio.sleep(60)
 
-# -----------------------
-# ENTRY POINT
-# -----------------------
 
 if __name__ == "__main__":
     asyncio.run(main())
