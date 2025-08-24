@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 OpenAI.api_key = os.getenv("OPENAI_API_KEY")  # Only needed for the OpenAI endpoint
 
-prompt_template = """
+PROMPT_TEMPLATE = """
 You are a forex signal processor. Parse the following signal message and return structured individual trade signals in JSON format.
 
 Your role:
