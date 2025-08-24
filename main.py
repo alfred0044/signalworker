@@ -4,6 +4,7 @@ import pathlib
 import sys
 import traceback
 from dotenv import load_dotenv
+print(load_dotenv())
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import GetDialogsRequest
 from telethon.tl.types import InputPeerEmpty
@@ -14,7 +15,7 @@ from sanitizer import sanitize_with_ai
 from signal_processor import process_sanitized_signal
 
 # Load environment variables
-load_dotenv()
+
 
 # -----------------------
 # CONFIGURATION
