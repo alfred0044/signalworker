@@ -1,13 +1,11 @@
-
 import os
-
-from openai import OpenAI
+import logging
 import asyncio
-
+from openai import OpenAI
 from dotenv import load_dotenv
-from filters import should_ignore_message
+
 load_dotenv()
-OpenAI.api_key = os.getenv("OPENAI_API_KEY")
+OpenAI.api_key = os.getenv("OPENAI_API_KEY")  # Only needed for the OpenAI endpoint
 
 prompt_template = """
 You are a forex signal processor. Parse the following signal message and return structured individual trade signals in JSON format.
@@ -33,7 +31,7 @@ Instructions:
 - All **TPs must be greater than** both the entry and the SL (i.e. entry < TP, SL < entry < TP).
 - Assign **the lowest TP** to the **highest entry**, and the **highest TP** to the **lowest entry** (maximize reward-to-risk).
 - If TPs are expressed in PIPS (e.g. TP1 = 50 PIPS), calculate absolute TP levels by *adding* PIP values to entry.
-  
+
 #### For **SELL LIMIT** orders:
 - All **TPs must be less than** both the entry and the SL (i.e. TP < entry, TP < SL < entry).
 - Assign **the highest TP** to the **lowest entry**, and the **lowest TP** to the **highest entry**.
@@ -83,41 +81,54 @@ Instructions:
 ### Input Message:
 {text}
 """
+  # Use a docstring or an external template file for readability
 
-
-# Use GROQ endpoint
+# Use true async client if available. Fall back to thread method if not.
 client = OpenAI(
     api_key=os.getenv("GROQ_API_KEY"),
     base_url="https://api.groq.com/openai/v1"
 )
 
-import asyncio
+logger = logging.getLogger("signalworker.sanitizer")
+logger.setLevel(logging.INFO)
+if not logger.hasHandlers():
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+    logger.addHandler(handler)
 
-async def sanitize_with_ai(signal_text):
-    print("🧼 Starting AI sanitization...")
+async def sanitize_with_ai(signal_text: str, timeout: int = 10) -> str:
+    """
+    Sends signal_text to the language model endpoint using the defined prompt template.
+    Returns the cleaned JSON string or the original text on timeout/failure.
+    """
+    logger.info("🧼 Starting AI sanitization for signal: %s", signal_text[:60])
+    prompt = PROMPT_TEMPLATE.replace("{text}", signal_text)
     try:
-        # Wrap blocking call in a function
         def blocking_call():
             return client.chat.completions.create(
                 model="llama3-70b-8192",
                 messages=[
-                    {"role": "system", "content": prompt_template},
+                    {"role": "system", "content": prompt},
                     {"role": "user", "content": signal_text}
                 ],
                 temperature=0.1
             )
+        response = await asyncio.wait_for(asyncio.to_thread(blocking_call), timeout=timeout)
+        cleaned = response.choices[0].message.content.strip()
+        logger.info("✅ AI sanitization complete. Response: %s...", cleaned[:60])
 
-        # Add timeout here (10 seconds, adjust as needed)
-        response = await asyncio.wait_for(asyncio.to_thread(blocking_call), timeout=10)
-
-        print("✅ AI sanitization complete.")
-        ##print(response.choices[0].message.content.strip())
-        return response.choices[0].message.content.strip()
+        # Optional: Check if it's valid JSON, else log warning
+        import json
+        try:
+            json.loads(cleaned)
+        except Exception:
+            logger.warning("LLM output is not valid JSON. Returning raw output.")
+        return cleaned
 
     except asyncio.TimeoutError:
-        print("⏱️ AI sanitization timed out.")
-        return signal_text  # Fallback
+        logger.error("⏱️ AI sanitization timed out after %ss.", timeout)
+        return signal_text
 
     except Exception as e:
-        print("❌ AI sanitization failed:", e)
-        return signal_text  # Fallback
+        logger.error("❌ AI sanitization failed: %s", e, exc_info=True)
+        return signal_text

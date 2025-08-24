@@ -8,8 +8,8 @@ load_dotenv()
 api_id = int(os.getenv("TELEGRAM_API_ID"))
 api_hash = os.getenv("TELEGRAM_API_HASH")
 session_name = "signal_splitter_prod"
-
 client = TelegramClient(session_name, api_id, api_hash)
+
 
 async def main():
     await client.start()
