@@ -106,7 +106,7 @@ async def sanitize_with_ai(signal_text: str, timeout: int = 10) -> str:
     try:
         def blocking_call():
             return client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": signal_text}

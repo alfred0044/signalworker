@@ -6,11 +6,8 @@ from dotenv import load_dotenv
 load_dotenv()
 from session import create_session_env, get_client
 from handlers import register_handlers
-from config import SESSION_PATH
+from config import SESSION_PATH, SOURCE_CHANNEL_IDS
 
-SOURCE_CHANNEL_IDS = [
-    int(cid.strip()) for cid in os.getenv("SOURCE_CHANNEL_IDS", "").split(",") if cid.strip()
-]
 async def wait_for_session():
     while not os.path.exists(SESSION_PATH):
         print(f"❌ Session file not found at {SESSION_PATH}. Retrying in 60 seconds...")
@@ -34,18 +31,18 @@ async def main():
                 print("❌ Telegram client not authorized. Session file may be invalid.")
                 await asyncio.sleep(60)
                 continue
-                # Rest of your dialog fetching and message handling logic here
 
             register_handlers(client)
+
             dialogs = await client.get_dialogs()
             for dialog in dialogs:
                 if abs(dialog.id) in SOURCE_CHANNEL_IDS:
                     print(dialog.name, dialog.id, "✅")
                 else:
                     print(dialog.name, dialog.id, "❌")
+
             await client.start()
             print("✅ Client started — waiting for messages.")
-
             await client.run_until_disconnected()
 
         except Exception:
