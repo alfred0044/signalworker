@@ -11,7 +11,7 @@ from utils import split_signals, log_to_google_sheets
 from json_extractor import JsonExtractor
 
 logger = logging.getLogger("signalworker.process")
-
+profit_pattern = r"^\+\d+\s*pips?\b"
 # In-memory store of signals keyed by telegram message ID
 active_signals_by_message_id: Dict[int, Dict] = {}
 
@@ -95,7 +95,7 @@ async def process_sanitized_signal(
 
         # Manipulation detection: if text matches "+XXpips", automatically mark as "cancel_pending"
         manipulation = item.get("manipulation")
-        if not manipulation and isinstance(text, str) and re.search(r"\+\d+\s*pips", text.lower()):
+        if not manipulation and isinstance(text, str) and  re.match(profit_pattern, text.lower()):
             manipulation = "cancel_pending"
 
         full_signal_json = create_signal_json(item, manipulation=manipulation, new_sl=item.get("new_sl"))
