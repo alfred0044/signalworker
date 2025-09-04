@@ -20,10 +20,10 @@ def should_ignore_message(text: str) -> bool:
     original_text = text
     text = text.lower().strip()
 
-    has_sl = re.search(r'\bsl\b[\s:]*\d+', text) or re.search(r'stop\s*loss', text)
-    has_tp_price = re.search(r'tp\d*[\s:]*[\$\d]+', text)
-    has_tp_pips  = re.search(r'\btp\d*[\s:=+\-]*\d+\s*p[ip]*s?\b', text)
-    has_tp_label = re.search(r'take\s*profit', text)
+    has_sl = re.search(r'\bsl\b[\s:]*\d+', text) or re.search(r'stop\s*loss', text, re.IGNORECASE)
+    has_tp_price = re.search(r'tp\d*[\s:]*[\$\d]+', text, re.IGNORECASE)
+    has_tp_pips  = re.search(r'\btp\d*[\s:=+\-]*\d+\s*p[ip]*s?\b', text,re.IGNORECASE)
+    has_tp_label = re.search(r'take\s*profit', text,re.IGNORECASE)
     has_tp = has_tp_price or has_tp_pips or has_tp_label
 
     # Accept manipulation commands and pips-profit even if missing TP/SL
