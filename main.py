@@ -3,24 +3,34 @@ import os
 import sys
 import traceback
 from dotenv import load_dotenv
-load_dotenv()
-from session import create_session_env, get_client
 from handlers import register_handlers
-from config import SESSION_PATH, SOURCE_CHANNEL_IDS
+from config import SOURCE_CHANNEL_IDS
 
-async def wait_for_session():
-    while not os.path.exists(SESSION_PATH):
-        print(f"❌ Session file not found at {SESSION_PATH}. Retrying in 60 seconds...")
-        await asyncio.sleep(60)
-    print(f"✅ Session file found at {SESSION_PATH}.")
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+
+load_dotenv()
+
+API_ID = int(os.getenv("TELEGRAM_API_ID"))
+API_HASH = os.getenv("TELEGRAM_API_HASH")
+SESSION_STRING = os.getenv("TELEGRAM_STRING_SESSION")
+
+async def create_stringsession():
+    # Interaktiver Modus: Session-String generieren (nur lokal, nicht Railway!)
+    async with TelegramClient(StringSession(), API_ID, API_HASH) as client:
+        await client.start()
+        print("🔑 StringSession:", client.session.save())
+
+def get_client():
+    if not SESSION_STRING:
+        raise RuntimeError("TELEGRAM_STRING_SESSION fehlt in den Umgebungsvariablen!")
+    return TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
 async def main():
-    # Optional session creation from CLI argument
+    # Optional: interaktive StringSession-Erstellung
     if len(sys.argv) > 1 and sys.argv[1] == "create_session":
-        await create_session_env()
+        await create_stringsession()
         return
-
-    await wait_for_session()
 
     while True:
         try:
@@ -28,10 +38,11 @@ async def main():
             await client.connect()
 
             if not await client.is_user_authorized():
-                print("❌ Telegram client not authorized. Session file may be invalid.")
+                print("❌ Telegram client not authorized. StringSession ist evtl. ungültig.")
                 await asyncio.sleep(60)
                 continue
 
+            # Handler registrieren (deine Funktionen)
             register_handlers(client)
 
             dialogs = await client.get_dialogs()
@@ -41,8 +52,7 @@ async def main():
                 else:
                     print(dialog.name, dialog.id, "❌")
 
-            await client.start()
-            print("✅ Client started — waiting for messages.")
+            print("✅ Client gestartet — wartet auf Nachrichten.")
             await client.run_until_disconnected()
 
         except Exception:
