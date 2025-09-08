@@ -8,7 +8,7 @@ def is_trade_signal(text: str) -> bool:
     Accepts signals that contain trading keywords or manipulation commands.
     """
     keywords = [
-        "XAUUSD", "GOLD", "TP", "SL", "BUY", "SELL", "ZONE", "ENTRY","Long","Short"
+        "XAUUSD", "GOLD", "TP", "SL", "BUY", "SELL", "ZONE", "ENTRY", "Long", "Short", "Short From","Long From" 
         "close all", "close at entry", "move sl to", "cancel pending"
     ]
     text_upper = text.upper()
