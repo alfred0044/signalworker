@@ -49,8 +49,15 @@ def register_handlers(client):
                     lower_text = text.lower().strip()
 
                     # Early bypass: direct handling for known manipulations
-                    if lower_text in {"close all", "close at entry"}:
+                    if lower_text in {"close at entry"}:
                         signal["manipulation"] = lower_text.replace(" ", "_")  # e.g. "close_all"
+                        update_signal_json_and_dropbox(signal)
+                        await client.send_message(OUTPUT_CHANNEL, f"Signal updated: {lower_text}.")
+
+                        return  # EARLY RETURN here to bypass AI sanitization
+
+                    if lower_text in {"close all", "close"}:
+                        signal["manipulation"] = "close_all"  # e.g. "close_all"
                         update_signal_json_and_dropbox(signal)
                         await client.send_message(OUTPUT_CHANNEL, f"Signal updated: {lower_text}.")
 

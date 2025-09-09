@@ -9,7 +9,7 @@ def is_trade_signal(text: str) -> bool:
     """
     keywords = [
         "XAUUSD", "GOLD", "TP", "SL", "BUY", "SELL", "ZONE", "ENTRY", "Long", "Short", "Short From","Long From" 
-        "close all", "close at entry", "move sl to", "cancel pending"
+        "close all", "close at entry", "move sl to", "cancel pending", "Cancel"
     ]
     text_upper = text.upper()
     # Include pips profit reply as manipulation
@@ -28,7 +28,7 @@ def should_ignore_message(text: str) -> bool:
 
     # Accept manipulation commands and pips-profit even if missing TP/SL
     manipulation_commands_present = (
-        any(cmd in text for cmd in ["close all", "close at entry", "move sl to", "cancel pending"]) or
+        any(cmd in text for cmd in ["close all", "close at entry", "move sl to", "cancel pending", "cancel"]) or
         re.search(r"\+\d+\s*pips", text)
     )
 
