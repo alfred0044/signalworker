@@ -56,7 +56,7 @@ def register_handlers(client):
 
                         return  # EARLY RETURN here to bypass AI sanitization
 
-                    if lower_text in {"close all", "close"}:
+                    if lower_text in {"close all", "close","cancel","cancel all"}:
                         signal["manipulation"] = "close_all"  # e.g. "close_all"
                         update_signal_json_and_dropbox(signal)
                         await client.send_message(OUTPUT_CHANNEL, f"Signal updated: {lower_text}.")

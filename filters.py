@@ -9,7 +9,7 @@ def is_trade_signal(text: str) -> bool:
     """
     keywords = [
         "XAUUSD", "GOLD", "TP", "SL", "BUY", "SELL", "ZONE", "ENTRY", "Long", "Short", "Short From","Long From" 
-        "close all", "close at entry", "move sl to", "cancel pending", "Cancel"
+        "close all", "close at entry", "move sl to", "cancel pending", "Cancel", "close"
     ]
     text_upper = text.upper()
     # Include pips profit reply as manipulation
