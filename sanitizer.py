@@ -19,6 +19,7 @@ Instructions:
 - If an entry zone is given (e.g. 3348–3350), split it evenly into 3 entries between those bounds.
 - Only create signals with type "BUY LIMIT" or "SELL LIMIT" — discard or skip market/stop orders.
 - Ensure instrument name does **not** include slashes or spaces, e.g. use `"XAUUSD"`, not `"XAU/USD"`.
+- Ensure that entrypoints closest to the current price are used. For SELL LIMIT the lowest price provided in the range, for BUY LIMIT the highest price.
 
 ### SL and TP Requirements:
 - Discard signals where either SL or TP is missing or labeled as "Open".
@@ -31,7 +32,7 @@ Instructions:
 - All **TPs must be greater than** both the entry and the SL (i.e. entry < TP, SL < entry < TP).
 - Assign **the lowest TP** to the **highest entry**, and the **highest TP** to the **lowest entry** (maximize reward-to-risk).
 - If TPs are expressed in PIPS (e.g. TP1 = 50 PIPS), calculate absolute TP levels by *adding* PIP values to entry.
-
+- 
 #### For **SELL LIMIT** orders:
 - All **TPs must be less than** both the entry and the SL (i.e. TP < entry, TP < SL < entry).
 - Assign **the highest TP** to the **lowest entry**, and the **lowest TP** to the **highest entry**.
