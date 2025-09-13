@@ -39,3 +39,39 @@ def upload_signal_to_dropbox(signal_data: dict, filename_prefix="signal"):
 
     except Exception as e:
         print(f"❌ Error: {e}",traceback.format_exc())
+
+
+def upload_signal_to_dropbox_grouped(signal: dict, filename_prefix="signal"):
+    """
+    Group all signals & manipulations by shared signalid into a single JSON file.
+    File name is based on the signalid.
+    """
+    signalid = signal["signalid"]
+    filename = f"/{filename_prefix}_{signalid}.json"
+
+    dbx = dropbox.Dropbox(
+        oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
+        app_key=DROPBOX_APP_KEY,
+        app_secret=DROPBOX_APP_SECRET
+    )
+
+    # Try to download existing data (if any)
+    existing_data = {"signals": []}
+    try:
+        _, res = dbx.files_download(filename)
+        existing_data = json.loads(res.content.decode("utf-8"))
+    except dropbox.exceptions.ApiError:
+        # File likely doesn't exist, start fresh
+        existing_data = {"signals": []}
+
+    # Append new signal/manipulation to the existing list
+    existing_data["signals"].append(signal)
+
+    # Upload updated JSON
+    dbx.files_upload(
+        json.dumps(existing_data, indent=2).encode("utf-8"),
+        filename,
+        mode=dropbox.files.WriteMode("overwrite"),  # overwrite the old file
+    )
+
+    print(f"✅ Uploaded to Dropbox: {filename}")

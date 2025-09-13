@@ -1,135 +1,193 @@
 import os
-import logging
+import re
+import json
 import asyncio
+import logging
+import uuid
+from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
-OpenAI.api_key = os.getenv("OPENAI_API_KEY")  # Only needed for the OpenAI endpoint
 
+logger = logging.getLogger("signalworker.sanitizer")
+logger.setLevel(logging.DEBUG)
+if not logger.hasHandlers():
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+    logger.addHandler(handler)
+
+AI_MODEL = os.getenv("AI_MODEL", "llama-3.3-70b-versatile")
+AI_BASE_URL = os.getenv("AI_BASE_URL", "https://api.groq.com/openai/v1")
+AI_KEY = os.getenv("AI_KEY", os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY"))
+
+if not AI_KEY:
+    raise RuntimeError("❌ Missing AI_KEY (set GROQ_API_KEY or OPENAI_API_KEY in .env)")
+
+client = OpenAI(api_key=AI_KEY, base_url=AI_BASE_URL)
+
+
+# ---------------- Manipulation Detection ---------------- #
+def detect_manipulation(text: str) -> dict:
+    text_lower = text.lower()
+
+    if re.search(r"\b(close all|close|cancel all)\b", text_lower):
+        return {"close_all": True}
+    if re.search(r"\bclose at entry\b", text_lower):
+        return {"close_at_entry": True}
+    match = re.search(r"move sl to (\d+(\.\d+)?)", text_lower)
+    if match:
+        try:
+            return {"move_sl": float(match.group(1))}
+        except Exception:
+            return {"move_sl": None}
+    if re.search(r"(cancel pending|cancel order|cancel trade)", text_lower):
+        return {"cancel_pending": True}
+    return {}
+
+# ---------------- Prompt Template ---------------- #
 PROMPT_TEMPLATE = """
 You are a forex signal processor. Parse the following signal message and return structured individual trade signals in JSON format.
 
 Your role:
 Extract valid BUY LIMIT and SELL LIMIT orders, including correct entry, stop loss (SL), and take profit (TP). Ensure SL and TP rules are strictly followed with regard to price direction and pip logic.
 
-Instructions:
-
 ### Entry Processing:
-- If an entry zone is given (e.g. 3348–3350), split it evenly into 3 entries between those bounds.
+- If an entry zone is given (e.g. 3348–3350), split it evenly into exactly 3 entries between those bounds.
+- Only create one signal per identified entrypoint
 - Only create signals with type "BUY LIMIT" or "SELL LIMIT" — discard or skip market/stop orders.
 - Ensure instrument name does **not** include slashes or spaces, e.g. use `"XAUUSD"`, not `"XAU/USD"`.
-- Ensure that entrypoints closest to the current price are used. For SELL LIMIT the lowest price provided in the range, for BUY LIMIT the highest price.
+- For SELL LIMIT: use lowest entry in range. For BUY LIMIT: use highest entry.
+- each signal has a unique entry price
 
 ### SL and TP Requirements:
 - Discard signals where either SL or TP is missing or labeled as "Open".
-- Don't infer missing values; process only when SL and at least one TP are explicitly present.
-- Use the same SL across all derived entries (if SL is shared across the range).
+- Use the same SL across all derived entries.
 
-### Buy/Sell Logic Matching:
+### TP/Entry Assignment Rules:
+1. BUY LIMIT → SL < Entry < TP; lowest TP to highest Entry, highest TP to lowest Entry.
+2. SELL LIMIT → TP < Entry < SL; highest TP to lowest Entry, lowest TP to highest Entry.
 
-#### For **BUY LIMIT** orders:
-- All **TPs must be greater than** both the entry and the SL (i.e. entry < TP, SL < entry < TP).
-- Assign **the lowest TP** to the **highest entry**, and the **highest TP** to the **lowest entry** (maximize reward-to-risk).
-- If TPs are expressed in PIPS (e.g. TP1 = 50 PIPS), calculate absolute TP levels by *adding* PIP values to entry.
-- 
-#### For **SELL LIMIT** orders:
-- All **TPs must be less than** both the entry and the SL (i.e. TP < entry, TP < SL < entry).
-- Assign **the highest TP** to the **lowest entry**, and the **lowest TP** to the **highest entry**.
-- If TPs are expressed in PIPS (e.g. TP1 = 50 PIPS), calculate absolute TP levels by *subtracting* PIP values from the entry.
+### Pip Calculation:
+- If instrument has 5 or 3 digits → 1 pip = 0.0001 or 0.01
+- If instrument has 4 or 2 digits → 1 pip = 0.0001 or 0.01
 
-### Instrument-Specific Pip Calculation:
-- Use common definitions for pip sizes based on instrument:
-  - If the instrument has 5 or 3 digits (like 1.12345 or 123.456), **1 pip = 0.0001** or **0.01**
-  - If it has 4 or 2 digits (like 1.1234 or 123.45), **1 pip = 0.0001** or **0.01**
+Do NOT create signals for all possible entry/take profit combinations and stop after 3 total.
 
-### Output Requirements:
-- Return a valid `.json` object — no explanations, prefixes, or extra descriptions.
-- Output all matched signals as array items under `"signals"` key.
-- Each signal must include:
-  - `instrument`
-  - `signal` (only `"BUY LIMIT"` or `"SELL LIMIT"`)
-  - `entry`
-  - `sl`
-  - `tp` (single TP target per signal)
-  - `time` (use ISO format like: `"2025-07-22T13:30:00Z"`)
-  - `source` (can default to "Sanitized Signals")
-
-### Example Output Format:
-{
+### Output:
+The result MUST BE PLAIN JSON, NO Explanation, NO Markdown, No '''
+Return only valid JSON like:
+{{
   "signals": [
-    {
+    {{
       "instrument": "XAUUSD",
       "signal": "SELL LIMIT",
       "entry": 2363.33,
       "sl": 2370.56,
-      "tp": 2361.38,
-      "time": "2025-07-14T15:00:00Z",
-      "source": "GoldChannel"
-    },
-    {
-      "instrument": "XAUUSD",
-      "signal": "SELL LIMIT",
-      "entry": 2365.36,
-      "sl": 2370.56,
       "tp": 2360.38,
       "time": "2025-07-14T15:00:00Z",
-      "source": "GoldChannel"
-    }
+      "source": "Sanitized Signals"
+    }}
   ]
-}
+}}
 
 ### Input Message:
 {text}
 """
-  # Use a docstring or an external template file for readability
 
-# Use true async client if available. Fall back to thread method if not.
-client = OpenAI(
-    api_key=os.getenv("GROQ_API_KEY"),
-    base_url="https://api.groq.com/openai/v1"
-)
 
-logger = logging.getLogger("signalworker.sanitizer")
-logger.setLevel(logging.INFO)
-if not logger.hasHandlers():
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
-    logger.addHandler(handler)
-
+# ---------------- AI sanitization ---------------- #
 async def sanitize_with_ai(signal_text: str, timeout: int = 10) -> str:
-    """
-    Sends signal_text to the language model endpoint using the defined prompt template.
-    Returns the cleaned JSON string or the original text on timeout/failure.
-    """
-    logger.info("🧼 Starting AI sanitization for signal: %s", signal_text[:60])
-    prompt = PROMPT_TEMPLATE.replace("{text}", signal_text)
+    logger.info("🧼 Sanitizing signal: %s", signal_text[:60])
+    prompt = PROMPT_TEMPLATE.format(text=signal_text)
+
     try:
         def blocking_call():
             return client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": signal_text}
-                ],
-                temperature=0.1
+                model=AI_MODEL,
+                messages=[{"role": "system", "content": prompt}],
+                temperature=0.1,
             )
+
         response = await asyncio.wait_for(asyncio.to_thread(blocking_call), timeout=timeout)
-        cleaned = response.choices[0].message.content.strip()
-        logger.info("✅ AI sanitization complete. Response: %s...", cleaned[:60])
-
-        # Optional: Check if it's valid JSON, else log warning
-        import json
-        try:
-            json.loads(cleaned)
-        except Exception:
-            logger.warning("LLM output is not valid JSON. Returning raw output.")
-        return cleaned
-
+        return response.choices[0].message.content.strip()
     except asyncio.TimeoutError:
-        logger.error("⏱️ AI sanitization timed out after %ss.", timeout)
-        return signal_text
-
+        logger.error("⏱️ AI sanitization timed out.")
+        return '{"signals": []}'
     except Exception as e:
         logger.error("❌ AI sanitization failed: %s", e, exc_info=True)
-        return signal_text
+        return '{"signals": []}'
+
+
+# ---------------- Postprocess ---------------- #
+def clean_llm_output(raw: str) -> str:
+    if not raw:
+        return raw
+    cleaned = raw.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"```$", "", cleaned.strip())
+    return cleaned.strip()
+
+
+def postprocess_ai_output(ai_json_str: str, original_text: str, is_reply: bool) -> dict:
+    """
+    Validate AI output JSON, attach manipulations (for replies),
+    and create a dummy signal if it's a pure manipulation reply.
+    """
+    cleaned = clean_llm_output(ai_json_str)
+    try:
+        data = json.loads(cleaned)
+    except json.JSONDecodeError:
+        logger.warning("⚠️ AI output invalid JSON — returning empty signals.")
+        data = {"signals": []}
+
+    manipulations = detect_manipulation(original_text) if is_reply else {}
+
+    # Apply manipulations onto AI-derived signals
+    for signal in data.get("signals", []):
+        if manipulations:
+            for key, val in manipulations.items():
+                signal["manipulation"] = key
+                if key == "move_sl" and val:
+                    signal["new_sl"] = val
+                break
+        if "source" not in signal:
+            signal["source"] = "Sanitized Signals"
+        if "time" not in signal:
+            signal["time"] = datetime.utcnow().isoformat() + "Z"
+        if "signalid" not in signal:
+            signal["signalid"] = str(uuid.uuid4())
+
+    # ✅ Special case: reply is ONLY a manipulation, AI returned no signals
+    if is_reply and manipulations and not data.get("signals"):
+        dummy = {
+            "signalid": str(uuid.uuid4()),
+            "source": "Sanitized Signals",
+            "time": datetime.utcnow().isoformat() + "Z",
+        }
+        for key, val in manipulations.items():
+            dummy["manipulation"] = key
+            if key == "move_sl" and val:
+                dummy["new_sl"] = val
+            break
+        data["signals"] = [dummy]
+
+    return data
+
+# ---------------- High-level ---------------- #
+async def sanitize_signal(signal_text: str, is_reply: bool = False, timeout: int = 10) -> dict:
+    ai_output = await sanitize_with_ai(signal_text, timeout=timeout)
+    return postprocess_ai_output(ai_output, signal_text, is_reply)
+
+# ---------------- Manual test ---------------- #
+if __name__ == "__main__":
+    test_message = """
+    🟢 XAUUSD BUY LIMIT
+    Entry: 1930 - 1932
+    SL: 1920
+    TP1: 1940
+    TP2: 1950
+    """
+
+    result = asyncio.run(sanitize_signal(test_message, is_reply=False))
+    print("Final sanitized JSON:", result)

@@ -1,28 +1,44 @@
+import asyncio
 from telethon import TelegramClient
+from telethon.sessions import StringSession
+from telethon.errors import SessionPasswordNeededError
+
+import asyncio
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+from telethon.errors import SessionPasswordNeededError
+import concurrent.futures
 import os
-import base64
 from dotenv import load_dotenv
 load_dotenv()
-
-
 api_id = int(os.getenv("TELEGRAM_API_ID"))
 api_hash = os.getenv("TELEGRAM_API_HASH")
-session_name = "signal_splitter_prod"
-client = TelegramClient(session_name, api_id, api_hash)
-
 
 async def main():
-    await client.start()
-    print("✅ Session created and authorized!")
+    client = TelegramClient(StringSession(), api_id, api_hash)
 
-    # Encode to base64
-    with open(f"{session_name}.session", "rb") as f:
-        b64 = base64.b64encode(f.read()).decode("utf-8")
+    async def get_phone():
+        return input("Bitte Telefonnummer eingeben (mit Ländervorwahl): ")
 
-    # Save to .b64 file
-    with open(f"{session_name}.session.b64", "w") as out:
-        out.write(b64)
+    async def get_code():
+        return input("Bitte den Code eingeben, den du erhalten hast: ")
 
-    print(f"📦 Saved: {session_name}.session.b64 (upload this to Railway)")
+    async def get_password():
+        return input("Bitte dein 2FA-Passwort eingeben: ")
 
-client.loop.run_until_complete(main())
+    await client.start(
+        phone=get_phone,
+        code_callback=get_code,
+        password=get_password
+    )
+
+    print("Login erfolgreich!")
+    print("Deine Session als String:")
+    print(client.session.save())
+
+    print("Client läuft. STRG+C zum Beenden.")
+    await client.run_until_disconnected()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
