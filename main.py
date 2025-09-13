@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+import re
 import traceback
 from dotenv import load_dotenv
 from handlers import register_handlers
@@ -8,7 +9,8 @@ from config import SOURCE_CHANNEL_IDS
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-
+from signal_db import init_db
+init_db()
 load_dotenv()
 
 API_ID = int(os.getenv("TELEGRAM_API_ID"))
@@ -43,7 +45,7 @@ async def main():
                 continue
 
             # Handler registrieren (deine Funktionen)
-            register_handlers(client)
+            register_handlers(client, SOURCE_CHANNEL_IDS)
 
             dialogs = await client.get_dialogs()
             for dialog in dialogs:
