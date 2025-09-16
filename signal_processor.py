@@ -44,7 +44,7 @@ def send_signal_with_tracking(signal):
             "history": [("pending", time.time())]
         }
     # Upload to Dropbox (your existing call)
-    if USE_LOCAL_STORAGE = True:
+    if USE_LOCAL_STORAGE == True:
         save_signal_batch_locally(signal)
     else:
         upload_signal_to_dropbox_grouped(signal)
