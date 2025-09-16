@@ -10,6 +10,7 @@ from config import SOURCE_CHANNEL_IDS
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from signal_db import init_db
+
 init_db()
 load_dotenv()
 
