@@ -9,7 +9,7 @@ import uuid
 from signal_db import store_signalid, get_signalid, add_entry
 import json
 import os
-USE_LOCAL_STORAGE = int(os.getenv("USE_LOCAL_STORAGE"))
+USE_LOCAL_STORAGE = os.getenv("USE_LOCAL_STORAGE")
 
 app = Flask(__name__)
 logger = logging.getLogger("signalworker.processor")
