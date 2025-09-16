@@ -10,7 +10,8 @@ from signal_db import store_signalid, get_signalid, add_entry
 import json
 import os
 USE_LOCAL_STORAGE = os.getenv("USE_LOCAL_STORAGE")
-
+sent_signal_keys = set()
+sent_signal_lock = threading.Lock()
 app = Flask(__name__)
 logger = logging.getLogger("signalworker.processor")
 
@@ -32,7 +33,16 @@ def ea_status_update():
     logging.info(f"Signal {signalid} status updated from EA: {new_status}")
     return jsonify({"status": "ok"}), 200
 
-
+def signal_unique_key(signal: dict) -> tuple:
+    # Define uniqueness; example includes manipulation, telegram_message_id, instrument, entry price, etc.
+    return (
+        signal.get("signalid"),
+        signal.get("telegram_message_id"),
+        signal.get("manipulation"),
+        signal.get("instrument"),
+        signal.get("entry"),
+        signal.get("signal")
+    )
 def send_signal_with_tracking(signal):
     signalid = signal["signalid"]
     with lock:
@@ -44,7 +54,8 @@ def send_signal_with_tracking(signal):
             "history": [("pending", time.time())]
         }
     # Upload to Dropbox (your existing call)
-    if USE_LOCAL_STORAGE == True:
+    print(USE_LOCAL_STORAGE)
+    if USE_LOCAL_STORAGE:
         save_signal_batch_locally(signal)
     else:
         upload_signal_to_dropbox_grouped(signal)
@@ -90,13 +101,28 @@ async def process_sanitized_signal(
         if not main_signalid:
             main_signalid = store_signalid(telegram_message_id)
 
+    # Deduplicate signals here by a unique key
+    unique_signals_dict = {}
     for signal in signals:
+        # Build unique key per signal: customize as needed
+        key = (
+            signal.get("telegram_message_id"),
+            signal.get("manipulation"),
+            signal.get("instrument"),
+            signal.get("entry"),
+            signal.get("signal")
+        )
+        unique_signals_dict[key] = signal  # overwrites duplicates, keeps last
+
+    unique_signals = list(unique_signals_dict.values())
+
+    for signal in unique_signals:
         signal["signalid"] = main_signalid
 
         if source:
             signal["source"] = source
         if link:
-            signal["link"] =  make_telegram_link(link)
+            signal["link"] = make_telegram_link(link)
         if timestamp:
             signal["time"] = timestamp
         if telegram_message_id:

@@ -30,12 +30,16 @@ client = OpenAI(api_key=AI_KEY, base_url=AI_BASE_URL)
 # ---------------- Manipulation Detection ---------------- #
 import re
 
+import re
+
+
 
 def detect_manipulation(text: str) -> dict:
     text_lower = text.lower()
-
+    cancel_pattern = r"\b(cancel pending|cancel order|cancel trade|close a part|partial close)\b"
+    pip_pattern = r"\+\d+\s?pips?"
     # Detect 'cancel_pending' related commands first to avoid 'close all' false positives
-    if re.search(r"\b(cancel pending|cancel order|cancel trade|close a part|partial close)\b", text_lower):
+    if re.search(cancel_pattern, text_lower) or re.search(pip_pattern, text_lower):
         return {"cancel_pending": True}
 
     # Then detect 'close_all' phrases precisely

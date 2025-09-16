@@ -78,26 +78,42 @@ def upload_signal_to_dropbox_grouped(signal: dict, filename_prefix="signal"):
     print(f"✅ Uploaded to Dropbox: {filename}")
 
 def save_signal_batch_locally(signal: dict, filename_prefix="signal"):
-        signalid = signal["signalid"]
-        filename = f"{filename_prefix}_{signalid}.json"
-        filepath = os.path.join(LOCAL_SIGNAL_FOLDER, filename)
+    signalid = signal["signalid"]
+    filename = f"{filename_prefix}_{signalid}.json"
+    filepath = os.path.join(LOCAL_SIGNAL_FOLDER, filename)
 
-        # Try to load existing data
-        existing_data = {"signals": []}
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, "r", encoding="utf-8") as f:
-                    existing_data = json.load(f)
-            except Exception as e:
-                logger.warning(f"Could not read existing file {filepath}, starting fresh. Error: {e}")
-
-        # Append the new signal to existing signals list
-        existing_data["signals"].append(signal)
-
-        # Save updated JSON back to file
+    # Try to load existing data
+    existing_data = {"signals": []}
+    if os.path.exists(filepath):
         try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(existing_data, f, indent=2)
-            logger.info(f"✅ Saved batch locally: {filepath}")
+            with open(filepath, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
         except Exception as e:
-            logger.error(f"Failed saving batch locally at {filepath}: {e}")
+            logger.warning(f"Could not read existing file {filepath}, starting fresh. Error: {e}")
+
+    # Helper to create a unique key per signal
+    def signal_key(sig):
+        return (
+            sig.get("telegram_message_id"),
+            sig.get("manipulation"),
+            sig.get("instrument"),
+            sig.get("entry"),
+            sig.get("signal")
+        )
+
+    # Build a map of existing signals keyed by uniqueness
+    existing_map = {signal_key(s): s for s in existing_data.get("signals", [])}
+
+    # Add or update the incoming signal in the map (deduplicates)
+    existing_map[signal_key(signal)] = signal
+
+    # Get the deduplicated list
+    dedup_signals = list(existing_map.values())
+
+    # Save updated JSON back to file
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump({"signals": dedup_signals}, f, indent=2)
+        logger.info(f"✅ Saved deduplicated batch locally: {filepath}")
+    except Exception as e:
+        logger.error(f"Failed saving batch locally at {filepath}: {e}")
