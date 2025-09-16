@@ -28,78 +28,113 @@ client = OpenAI(api_key=AI_KEY, base_url=AI_BASE_URL)
 
 
 # ---------------- Manipulation Detection ---------------- #
+import re
+
+
 def detect_manipulation(text: str) -> dict:
     text_lower = text.lower()
 
-    if re.search(r"\b(close all|close|cancel all)\b", text_lower):
+    # Detect 'cancel_pending' related commands first to avoid 'close all' false positives
+    if re.search(r"\b(cancel pending|cancel order|cancel trade|close a part|partial close)\b", text_lower):
+        return {"cancel_pending": True}
+
+    # Then detect 'close_all' phrases precisely
+    if re.search(r"\bclose all\b", text_lower):
         return {"close_all": True}
+
+    # 'close at entry' exact phrase
     if re.search(r"\bclose at entry\b", text_lower):
         return {"close_at_entry": True}
+
+    # Move stop loss to specified price
     match = re.search(r"move sl to (\d+(\.\d+)?)", text_lower)
     if match:
         try:
             return {"move_sl": float(match.group(1))}
         except Exception:
             return {"move_sl": None}
-    if re.search(r"(cancel pending|cancel order|cancel trade)", text_lower):
-        return {"cancel_pending": True}
+
     return {}
-
 # ---------------- Prompt Template ---------------- #
-PROMPT_TEMPLATE = """
-You are a forex signal processor. Parse the following signal message and return structured individual trade signals in JSON format.
 
-Your role:
-Extract valid BUY LIMIT and SELL LIMIT orders, including correct entry, stop loss (SL), and take profit (TP). Ensure SL and TP rules are strictly followed with regard to price direction and pip logic.
+test ="""
+       Your role and rules:
+   Extract valid BUY LIMIT and SELL LIMIT orders only. Discard or skip other order types.
 
-### Entry Processing:
-- If an entry zone is given (e.g. 3348–3350), split it evenly into exactly 3 entries between those bounds.
-- Only create one signal per identified entrypoint
-- Only create signals with type "BUY LIMIT" or "SELL LIMIT" — discard or skip market/stop orders.
-- Ensure instrument name does **not** include slashes or spaces, e.g. use `"XAUUSD"`, not `"XAU/USD"`.
-- For SELL LIMIT: use lowest entry in range. For BUY LIMIT: use highest entry.
-- each signal has a unique entry price
+   For any entry zone given (e.g. 3348–3350), split it evenly into exactly 3 unique entries strictly within the given range.
 
-### SL and TP Requirements:
-- Discard signals where either SL or TP is missing or labeled as "Open".
-- Use the same SL across all derived entries.
+   Create only one signal per identified entry point.
 
-### TP/Entry Assignment Rules:
-1. BUY LIMIT → SL < Entry < TP; lowest TP to highest Entry, highest TP to lowest Entry.
-2. SELL LIMIT → TP < Entry < SL; highest TP to lowest Entry, lowest TP to highest Entry.
+   Normalize instrument names to remove slashes and spaces. For example, use "XAUUSD" not "XAU/USD".
 
-### Pip Calculation:
-- If instrument has 5 or 3 digits → 1 pip = 0.0001 or 0.01
-- If instrument has 4 or 2 digits → 1 pip = 0.0001 or 0.01
+   For SELL LIMIT: use the lowest entry in the range. For BUY LIMIT: use the highest entry.
 
-Do NOT create signals for all possible entry/take profit combinations and stop after 3 total.
+   The stop loss (SL) and take profit (TP) must both be present, not "Open" or missing.
 
-### Output:
-The result MUST BE PLAIN JSON, NO Explanation, NO Markdown, No '''
-Return only valid JSON like:
-{{
-  "signals": [
-    {{
-      "instrument": "XAUUSD",
-      "signal": "SELL LIMIT",
-      "entry": 2363.33,
-      "sl": 2370.56,
-      "tp": 2360.38,
-      "time": "2025-07-14T15:00:00Z",
-      "source": "Sanitized Signals"
-    }}
-  ]
-}}
+   Use the same SL for all entries derived from the same signal.
 
-### Input Message:
+   TP and entry must obey:
+
+   BUY LIMIT → SL < Entry < TP; assign the lowest TP to the highest entry, highest TP to the lowest entry, and midpoint TP to the middle entry.
+
+   SELL LIMIT → TP < Entry < SL; assign the highest TP to the lowest entry, lowest TP to the highest entry, and midpoint TP to the middle entry.
+
+   Determine pip size based on instrument digits (common: 5 or 3 digits → 0.0001 or 0.01 pips; 4 or 2 digits → 0.0001 or 0.01 pips).
+
+   Output exactly 3 signals maximum for each valid signal.
+
+   Do not create signals for any entries outside the given range or duplicate entries.
+
+   Important:
+   The output must be PLAIN JSON ONLY, with NO explanation, NO markdown, and NO comments.
+
+   All values extracted and output must be based strictly on the input message. Under no circumstance should you add, invent, or guess additional signals, instruments, or values not found in the input.
+
+   Enforce strict validation: if any required field is missing or invalid in the input, do not output a signal for it.
+
+   If no valid signals can be parsed, output an empty signals array: {{ "signals": [] }}.
+
+   Output format example (values are placeholders ONLY - DO NOT COPY):
+   {{
+   "signals": [
+   {{
+   "instrument": "XAUUSD",
+   "signal": "BUY LIMIT",
+   "entry": 3648,
+   "sl": 3644,
+   "tp": 3660,
+   "time": "2025-09-10T13:40:28Z",
+   "source": "Sanitized Signals"
+   }},
+   {{
+   "instrument": "XAUUSD",
+   "signal": "BUY LIMIT",
+   "entry": 3649,
+   "sl": 3644,
+   "tp": 3665,
+   "time": "2025-09-10T13:40:28Z",
+   "source": "Sanitized Signals"
+   }},
+   {{
+   "instrument": "XAUUSD",
+   "signal": "BUY LIMIT",
+   "entry": 3650,
+   "sl": 3644,
+   "tp": 3670,
+   "time": "2025-09-10T13:40:28Z",
+   "source": "Sanitized Signals"
+   }}
+   ]
+   }}
+   
+   
+   ### Input Message:
 {text}
-"""
-
-
+       """
 # ---------------- AI sanitization ---------------- #
 async def sanitize_with_ai(signal_text: str, timeout: int = 10) -> str:
     logger.info("🧼 Sanitizing signal: %s", signal_text[:60])
-    prompt = PROMPT_TEMPLATE.format(text=signal_text)
+    prompt = test.format(text=signal_text)
 
     try:
         def blocking_call():
@@ -135,6 +170,7 @@ def postprocess_ai_output(ai_json_str: str, original_text: str, is_reply: bool) 
     and create a dummy signal if it's a pure manipulation reply.
     """
     cleaned = clean_llm_output(ai_json_str)
+
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError:

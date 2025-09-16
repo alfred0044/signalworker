@@ -5,12 +5,13 @@ import dropbox
 import os
 import json
 from datetime import datetime
-
+import logging
+logger = logging.getLogger("signalworker.filewriter")
 # Environment variables
 DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
 DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
 DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
-
+LOCAL_SIGNAL_FOLDER =  "local_signals"
 def upload_signal_to_dropbox(signal_data: dict, filename_prefix="signal"):
     try:
         # Work directly with signal_data
@@ -75,3 +76,28 @@ def upload_signal_to_dropbox_grouped(signal: dict, filename_prefix="signal"):
     )
 
     print(f"✅ Uploaded to Dropbox: {filename}")
+
+def save_signal_batch_locally(signal: dict, filename_prefix="signal"):
+        signalid = signal["signalid"]
+        filename = f"{filename_prefix}_{signalid}.json"
+        filepath = os.path.join(LOCAL_SIGNAL_FOLDER, filename)
+
+        # Try to load existing data
+        existing_data = {"signals": []}
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except Exception as e:
+                logger.warning(f"Could not read existing file {filepath}, starting fresh. Error: {e}")
+
+        # Append the new signal to existing signals list
+        existing_data["signals"].append(signal)
+
+        # Save updated JSON back to file
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(existing_data, f, indent=2)
+            logger.info(f"✅ Saved batch locally: {filepath}")
+        except Exception as e:
+            logger.error(f"Failed saving batch locally at {filepath}: {e}")

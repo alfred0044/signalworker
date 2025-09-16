@@ -2,6 +2,7 @@ import logging
 from telethon import events
 from sanitizer import sanitize_signal
 from signal_processor import process_sanitized_signal
+from filters import should_ignore_message,is_trade_signal
 
 logger = logging.getLogger("signalworker.handlers")
 
@@ -13,6 +14,14 @@ def register_handlers(client, source_channels):
     async def handler(event):
         text = event.raw_text.strip()
         if not text:
+            return
+
+        if should_ignore_message(text):
+            logger.info("Ignored message: does not pass should_ignore_message.")
+            return
+
+        if not is_trade_signal(text):
+            logger.debug("Message is not a trade signal.")
             return
 
         sanitized = await sanitize_signal(

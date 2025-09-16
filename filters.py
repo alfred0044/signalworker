@@ -19,7 +19,7 @@ def is_trade_signal(text: str) -> bool:
 def should_ignore_message(text: str) -> bool:
     original_text = text
     text = text.lower().strip()
-
+    print(text)
     has_sl = re.search(r'\bsl\b[\s:]*\d+', text) or re.search(r'stop\s*loss', text, re.IGNORECASE)
     has_tp_price = re.search(r'tp\d*[\s:]*[\$\d]+', text, re.IGNORECASE)
     has_tp_pips  = re.search(r'\btp\d*[\s:=+\-]*\d+\s*p[ip]*s?\b', text,re.IGNORECASE)
