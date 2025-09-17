@@ -9,7 +9,7 @@ import uuid
 from signal_db import store_signalid, get_signalid, add_entry
 import json
 import os
-USE_LOCAL_STORAGE = os.getenv("USE_LOCAL_STORAGE")
+USE_LOCAL_STORAGE = bool(os.getenv("USE_LOCAL_STORAGE"))
 sent_signal_keys = set()
 sent_signal_lock = threading.Lock()
 app = Flask(__name__)
