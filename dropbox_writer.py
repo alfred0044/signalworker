@@ -42,80 +42,40 @@ def upload_signal_to_dropbox(signal_data: dict, filename_prefix="signal"):
         print(f"❌ Error: {e}",traceback.format_exc())
 
 
-def upload_signal_to_dropbox_grouped(signal: dict, filename_prefix="signal"):
+def upload_signal_to_dropbox_grouped(signal: dict, manipulation_count: int = 0, filename_prefix="signal"):
     """
-    Group all signals & manipulations by shared signalid into a single JSON file.
-    File name is based on the signalid.
+    Uploads the individual signal to Dropbox.
+    Appends manipulation count in filename if applicable for uniqueness.
     """
     signalid = signal["signalid"]
 
-    # Dropbox client initialization
     dbx = dropbox.Dropbox(
         oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
         app_key=DROPBOX_APP_KEY,
         app_secret=DROPBOX_APP_SECRET
     )
 
-    # Base filename without manipulation prefix
-    base_filename = f"/{filename_prefix}_{signalid}.json"
-
-    # Try to download existing data (if any)
-    existing_data = {"signals": []}
-    try:
-        _, res = dbx.files_download(base_filename)
-        existing_data = json.loads(res.content.decode("utf-8"))
-    except dropbox.exceptions.ApiError:
-        # File likely doesn't exist, start fresh
-        existing_data = {"signals": []}
-
-    # Append new signal/manipulation to the existing list
-    existing_data["signals"].append(signal)
-
-    # Helper to create a unique key per signal (for deduplication if needed)
-    def signal_key(sig):
-        return (
-            sig.get("telegram_message_id"),
-            sig.get("manipulation"),
-            sig.get("instrument"),
-            sig.get("entry"),
-            sig.get("signal")
-        )
-
-    dedup_map = {signal_key(s): s for s in existing_data.get("signals", [])}
-    dedup_signals = list(dedup_map.values())
-
-    # Count manipulations for this signalid if signal has manipulation
-    manipulation_value = signal.get("manipulation")
-    if manipulation_value:
-        manip_count = sum(
-            1 for s in dedup_signals
-            if s.get("signalid") == signalid and s.get("manipulation") is not None
-        )
-        # If the current signal's key not previously present, increment manip_count
-        if signal_key(signal) not in dedup_map:
-            manip_count += 1
-        filename = f"/manipulation{manip_count}{filename_prefix}_{signalid}.json"
+    if manipulation_count > 0:
+        filename = f"/manipulation{manipulation_count}{filename_prefix}_{signalid}.json"
     else:
-        # No manipulation: keep original filename
-        filename = base_filename
+        filename = f"/{filename_prefix}_{signalid}.json"
 
-    # Upload updated JSON with deduplicated signals
-    dbx.files_upload(
-        json.dumps({"signals": dedup_signals}, indent=2).encode("utf-8"),
-        filename,
-        mode=dropbox.files.WriteMode("overwrite"),
-    )
-
-    print(f"✅ Uploaded to Dropbox: {filename}")
+    try:
+        dbx.files_upload(
+            json.dumps({"signals": [signal]}, indent=2).encode("utf-8"),
+            filename,
+            mode=dropbox.files.WriteMode("overwrite"),
+        )
+        print(f"✅ Uploaded to Dropbox: {filename}")
+    except Exception as e:
+        print(f"❌ Failed to upload to Dropbox: {e}")
 
 
 def save_signal_batch_locally(signal: dict, filename_prefix="signal"):
     signalid = signal["signalid"]
-    # Gather the filename without manipulation count yet
     filename_without_count = f"{filename_prefix}_{signalid}.json"
     filepath = os.path.join(LOCAL_SIGNAL_FOLDER, filename_without_count)
-
-    # Load existing data as usual
+    print("tre");
     existing_data = {"signals": []}
     if os.path.exists(filepath):
         try:
@@ -124,7 +84,6 @@ def save_signal_batch_locally(signal: dict, filename_prefix="signal"):
         except Exception as e:
             logger.warning(f"Could not read existing file {filepath}, starting fresh. Error: {e}")
 
-    # Helper to create a unique key per signal
     def signal_key(sig):
         return (
             sig.get("telegram_message_id"),
@@ -134,35 +93,29 @@ def save_signal_batch_locally(signal: dict, filename_prefix="signal"):
             sig.get("signal")
         )
 
-    # Map and deduplicate
-    existing_map = {signal_key(s): s for s in existing_data.get("signals", [])}
-    existing_map[signal_key(signal)] = signal
-    dedup_signals = list(existing_map.values())
+    # Collect all signals with this signalid (deduplicate by full key)
+    signals_all = existing_data.get("signals", [])
+    signals_all.append(signal)  # add new one
+    # Deduplicate (latest wins)
+    sigmap = {signal_key(s): s for s in signals_all}
+    dedup_signals = list(sigmap.values())
 
-    # Count manipulations (for this signalid)
+    # Now, get all manipulations for this signalid, sort by time if needed
+    manip_signals = [s for s in dedup_signals if s.get("signalid") == signalid and s.get("manipulation") is not None]
+    manipulation_count = len(manip_signals)
+
+    # Compose new filename for manipulation
     manipulation_value = signal.get("manipulation")
-    # Keep original name if no manipulation
     if manipulation_value:
-        # Count manipulations as before
-        manip_count = sum(
-            1 for s in dedup_signals
-            if s.get("signalid") == signalid and s.get("manipulation") is not None
-        )
-        if (
-                manipulation_value is not None
-                and signal_key(signal) not in [signal_key(s) for s in existing_data.get("signals", [])]
-        ):
-            manip_count += 1
-        filename = f"manipulation{manip_count}{filename_prefix}_{signalid}.json"
+        filename = f"manipulation{manipulation_count}{filename_prefix}_{signalid}.json"
     else:
         filename = f"{filename_prefix}_{signalid}.json"
-
     filepath = os.path.join(LOCAL_SIGNAL_FOLDER, filename)
-
-    # Save updated JSON back to file
     try:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump({"signals": dedup_signals}, f, indent=2)
         logger.info(f"✅ Saved deduplicated batch locally: {filepath}")
     except Exception as e:
         logger.error(f"Failed saving batch locally at {filepath}: {e}")
+
+

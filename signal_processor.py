@@ -19,6 +19,8 @@ logger = logging.getLogger("signalworker.processor")
 signal_states = {}
 lock = threading.Lock()
 
+manipulation_counters = {}  # memory map signalid -> manipulation count
+
 
 @app.route("/ea-status-update", methods=["POST"])
 def ea_status_update():
@@ -45,6 +47,8 @@ def signal_unique_key(signal: dict) -> tuple:
     )
 def send_signal_with_tracking(signal):
     signalid = signal["signalid"]
+
+    # Track signal lifecycle state
     with lock:
         signal_states[signalid] = {
             "sent_time": time.time(),
@@ -53,16 +57,22 @@ def send_signal_with_tracking(signal):
             "last_update": time.time(),
             "history": [("pending", time.time())]
         }
-    # Upload to Dropbox (your existing call)
-    print(USE_LOCAL_STORAGE)
+
+    manipulation_count = 0
+    if signal.get("manipulation"):
+        with lock:
+            manipulation_counters.setdefault(signalid, 0)
+            manipulation_counters[signalid] += 1
+            manipulation_count = manipulation_counters[signalid]
+
+    # Upload or save locally
     if USE_LOCAL_STORAGE:
         save_signal_batch_locally(signal)
     else:
-        upload_signal_to_dropbox_grouped(signal)
+        upload_signal_to_dropbox_grouped(signal, manipulation_count=manipulation_count)
 
-    # You can also log to Google Sheets or elsewhere
-    log_to_google_sheets(signal)
-    logger.info(f"Signal {signalid} sent and tracking started.")
+    # Additional logging or secondary output
+    logger.info(f"Signal {signalid} uploaded with manipulation count {manipulation_count}")
 
 def update_signal_state(signalid, new_status, extra_info=None):
     with lock:

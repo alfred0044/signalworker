@@ -41,6 +41,6 @@ def update_existing_signal(signal: dict, action: str, value=None):
     logger.info(f"📤 Uploading manipulation: {manipulation_payload}")
 
     try:
-        upload_signal_to_dropbox([manipulation_payload])
+        upload_signal_to_dropbox_grouped([manipulation_payload])
     except Exception as e:
         logger.error(f"❌ Failed to upload manipulation to Dropbox: {e}", exc_info=True)
