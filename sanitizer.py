@@ -23,7 +23,7 @@ AI_KEY = os.getenv("AI_KEY", os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_
 
 if not AI_KEY:
     raise RuntimeError("❌ Missing AI_KEY (set GROQ_API_KEY or OPENAI_API_KEY in .env)")
-
+491
 client = OpenAI(api_key=AI_KEY, base_url=AI_BASE_URL)
 
 

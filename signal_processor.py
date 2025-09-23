@@ -4,12 +4,14 @@ import logging
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from utils import log_to_google_sheets, update_existing_signal
-from dropbox_writer import upload_signal_to_dropbox_grouped,save_signal_batch_locally
+from dropbox_writer import store_signal_batch
 import uuid
 from signal_db import store_signalid, get_signalid, add_entry
 import json
 import os
+
 USE_LOCAL_STORAGE = os.getenv("USE_LOCAL_STORAGE", "False").lower() in ("true", "1", "yes")
+LOCAL_SIGNAL_FOLDER = os.getenv("LOCAL_SIGNAL_FOLDER")
 sent_signal_keys = set()
 sent_signal_lock = threading.Lock()
 app = Flask(__name__)
@@ -18,7 +20,7 @@ logger = logging.getLogger("signalworker.processor")
 # In-memory lifecycle signal state tracking
 signal_states = {}
 lock = threading.Lock()
-
+signal_batches = {}
 manipulation_counters = {}  # memory map signalid -> manipulation count
 
 
@@ -35,6 +37,7 @@ def ea_status_update():
     logging.info(f"Signal {signalid} status updated from EA: {new_status}")
     return jsonify({"status": "ok"}), 200
 
+
 def signal_unique_key(signal: dict) -> tuple:
     # Define uniqueness; example includes manipulation, telegram_message_id, instrument, entry price, etc.
     return (
@@ -45,6 +48,16 @@ def signal_unique_key(signal: dict) -> tuple:
         signal.get("entry"),
         signal.get("signal")
     )
+
+def signal_key(sig):
+    return (
+        sig.get("telegram_message_id"),
+        sig.get("manipulation"),
+        sig.get("instrument"),
+        sig.get("entry"),
+        sig.get("signal")
+    )
+
 def send_signal_with_tracking(signal):
     signalid = signal["signalid"]
 
@@ -74,6 +87,7 @@ def send_signal_with_tracking(signal):
     # Additional logging or secondary output
     logger.info(f"Signal {signalid} uploaded with manipulation count {manipulation_count}")
 
+
 def update_signal_state(signalid, new_status, extra_info=None):
     with lock:
         if signalid in signal_states:
@@ -86,6 +100,7 @@ def update_signal_state(signalid, new_status, extra_info=None):
         else:
             logger.warning(f"Signal {signalid} update received but not found in tracking.")
 
+
 async def process_sanitized_signal(
     sanitized: dict,
     source: str = None,
@@ -96,78 +111,83 @@ async def process_sanitized_signal(
 ):
     signals = sanitized.get("signals", [])
     if not signals:
-        logger.warning("⚠️ No signals found in sanitized payload.")
+        logger.warning("⚠️ No signals found.")
         return
 
     first_signal = signals[0] if signals else {}
     if first_signal.get("manipulation"):
-        main_signalid = None
-        if reply_to_msg_id:
-            main_signalid = get_signalid(reply_to_msg_id)
-        if not main_signalid:
-            main_signalid = str(uuid.uuid4())
+        main_signalid = get_signalid(reply_to_msg_id) if reply_to_msg_id else str(uuid.uuid4())
     else:
-        main_signalid = get_signalid(telegram_message_id)
-        if not main_signalid:
-            main_signalid = store_signalid(telegram_message_id)
+        main_signalid = get_signalid(telegram_message_id) or store_signalid(telegram_message_id)
 
-    # Deduplicate signals here by a unique key
-    unique_signals_dict = {}
+    # Deduplicate current batch per key
+    unique = {}
     for signal in signals:
-        # Build unique key per signal: customize as needed
-        key = (
+        k = (
             signal.get("telegram_message_id"),
             signal.get("manipulation"),
             signal.get("instrument"),
             signal.get("entry"),
             signal.get("signal")
         )
-        unique_signals_dict[key] = signal  # overwrites duplicates, keeps last
+        unique[k] = signal
 
-    unique_signals = list(unique_signals_dict.values())
+    # Fill context fields and add to entry db
+    for sig in unique.values():
+        sig["signalid"] = main_signalid
+        if source: sig["source"] = source
+        if link: sig["link"] = make_telegram_link(link)
+        if timestamp: sig["time"] = timestamp
+        if telegram_message_id: sig["telegram_message_id"] = telegram_message_id
+        entry_type = "manipulation" if sig.get("manipulation") else "entry"
+        add_entry(main_signalid, telegram_message_id, entry_type, json.dumps(sig))
 
-    for signal in unique_signals:
-        signal["signalid"] = main_signalid
+    # Update global in-memory batch
+    batch = signal_batches.setdefault(main_signalid, [])
+    batch.extend(unique.values())
+    dedup_signals = list({signal_key(s): s for s in batch}.values())
+    signal_batches[main_signalid] = dedup_signals
 
-        if source:
-            signal["source"] = source
-        if link:
-            signal["link"] = make_telegram_link(link)
-        if timestamp:
-            signal["time"] = timestamp
-        if telegram_message_id:
-            signal["telegram_message_id"] = telegram_message_id
+    # Store full batch under a constant filename (local or Dropbox)
+    store_signal_batch(
+        dedup_signals,
+        main_signalid,
+        USE_LOCAL_STORAGE,
+        LOCAL_SIGNAL_FOLDER,
+    )
 
-        entry_type = "manipulation" if signal.get("manipulation") else "entry"
-        add_entry(main_signalid, telegram_message_id, entry_type, json.dumps(signal))
-
-        # Send with lifecycle tracking
-        send_signal_with_tracking(signal)
+    logger.info(f"Signal batch for {main_signalid} written with {len(dedup_signals)} entries.")
 
 # Periodic cleanup thread to invalidate stale signals
 def cleanup_stale_signals(expiration_seconds=3600):
     while True:
         now = time.time()
         with lock:
-            stale_signals = [sid for sid, data in signal_states.items() if data["status"] == "pending" and (now - data["sent_time"]) > expiration_seconds]
+            stale_signals = [sid for sid, data in signal_states.items() if
+                             data["status"] == "pending" and (now - data["sent_time"]) > expiration_seconds]
             for sid in stale_signals:
                 signal_states[sid]["status"] = "invalidated"
                 signal_states[sid]["history"].append(("invalidated", now))
                 logger.info(f"Signal {sid} marked as invalidated due to timeout.")
         time.sleep(60)
 
+
 # You can run the cleanup thread alongside your app
 import threading
+
 cleanup_thread = threading.Thread(target=cleanup_stale_signals, daemon=True)
 cleanup_thread.start()
 
+
 def run_flask():
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 def start_flask():
     thread = threading.Thread(target=run_flask)
     thread.daemon = True
     thread.start()
+
 
 def make_telegram_link(raw_link):
     # Example input: https://t.me/c/1001548011615/35856
@@ -182,7 +202,6 @@ def make_telegram_link(raw_link):
             parts[4] = chat_id[3:]  # strip first 3 chars
         return "/".join(parts)
     return raw_link
-
 
 
 if __name__ == "__main__":
