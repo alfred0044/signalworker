@@ -20,7 +20,7 @@ def log_skipped_signal(reason, signal, logfile="skipped_signals.log"):
     with open(logfile, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 import logging
-from dropbox_writer import upload_signal_to_dropbox
+
 
 logger = logging.getLogger("signalworker.utils")
 
