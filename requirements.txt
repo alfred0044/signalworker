@@ -6,3 +6,5 @@ python-dotenv
 dropbox
 JsonExtractor
 flask
+uvicorn
+fastapi
