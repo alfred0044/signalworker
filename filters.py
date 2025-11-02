@@ -76,8 +76,7 @@ def should_ignore_message(text: str) -> bool:
 
     # update signals patterns unchanged but case insensitive on text_lower
     update_patterns = [
-        r'\b(tp|sl)\s*(hit|triggered)?[:\-\s]*[\+\-]?\d+\s*pips?\b',
-        r'\+[\d\.]+\s*pips?\b',
+
         r'\bsl\s+was\s+hit\b',
         r'^(buy|sell)[\s\S]{0,20}:\s*\+?\d+\s*pips?',
         r'\b\d{1,3}%\s*win\s*rate\b',

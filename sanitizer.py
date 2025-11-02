@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
+import ast
 
 load_dotenv()
 
@@ -61,81 +62,105 @@ def detect_manipulation(text: str) -> dict:
     return {}
 # ---------------- Prompt Template ---------------- #
 
-test ="""
-       Your role and rules:
-   Extract valid BUY LIMIT and SELL LIMIT orders only. Discard or skip other order types.
+test = """
+Your role and rules:
+Extract valid BUY LIMIT and SELL LIMIT orders only. Discard or skip other order types.
 
-   For any entry zone given (e.g. 3348–3350), split it evenly into exactly 3 unique entries strictly within the given range.
+For any entry zone given (e.g. 3348–3350), split it evenly into exactly 3 unique entries strictly within the given range.
 
-   Create only one signal per identified entry point.
+Create only one signal per identified entry point.
 
-   Normalize instrument names to remove slashes and spaces. For example, use "XAUUSD" not "XAU/USD".
+Normalize instrument names to remove slashes and spaces. For example, use "XAUUSD" not "XAU/USD".
 
-   For SELL LIMIT: use the lowest entry in the range. For BUY LIMIT: use the highest entry.
+For SELL LIMIT: use the lowest entry in the range. For BUY LIMIT: use the highest entry.
 
-   The stop loss (SL) and take profit (TP) must both be present, not "Open" or missing.
+The stop loss (SL) and take profit (TP) must both be present, not "Open" or missing.
 
-   Use the same SL for all entries derived from the same signal.
+Use the same SL for all entries derived from the same signal.
 
-   TP and entry must obey:
+TP and entry must obey:
+- BUY LIMIT → SL < Entry < TP; assign the lowest TP to the highest entry, highest TP to the lowest entry, and midpoint TP to the middle entry.
+- SELL LIMIT → TP < Entry < SL; assign the highest TP to the lowest entry, lowest TP to the highest entry, and midpoint TP to the middle entry.
 
-   BUY LIMIT → SL < Entry < TP; assign the lowest TP to the highest entry, highest TP to the lowest entry, and midpoint TP to the middle entry.
+Determine pip size based on instrument digits:
+- For XAUUSD, XAGUSD → 1 pip = 0.1
+- For 5-digit or 3-digit pairs → 1 pip = 0.0001 or 0.01 respectively
+- For 4-digit or 2-digit pairs → 1 pip = 0.0001 or 0.01 respectively
 
-   SELL LIMIT → TP < Entry < SL; assign the highest TP to the lowest entry, lowest TP to the highest entry, and midpoint TP to the middle entry.
+When TP is given in pips (e.g. “30 pips – 50 pips – 80 pips”):
+- For BUY LIMIT: TP = Entry + (pips × pip_size)
+- For SELL LIMIT: TP = Entry − (pips × pip_size)
 
-   Determine pip size based on instrument digits (common: 5 or 3 digits → 0.0001 or 0.01 pips; 4 or 2 digits → 0.0001 or 0.01 pips).
+When TP is given as explicit price levels (e.g. “TP: 1974 – 1980 – 1990”):
+- Use the given numerical values directly as TPs, adjusting assignments according to the BUY or SELL rules above.
 
-   Output exactly 3 signals maximum for each valid signal.
+Output exactly 3 signals maximum for each valid signal.
 
-   Do not create signals for any entries outside the given range or duplicate entries.
+Do not create signals for any entries outside the given range or duplicate entries.
 
-   Important:
-   The output must be PLAIN JSON ONLY, with NO explanation, NO markdown, and NO comments.
+Important:
+The output must be PLAIN JSON ONLY, with NO explanation, NO markdown, and NO comments.
 
-   All values extracted and output must be based strictly on the input message. Under no circumstance should you add, invent, or guess additional signals, instruments, or values not found in the input.
+All values extracted and output must be based strictly on the input message. Under no circumstance should you add, invent, or guess additional signals, instruments, or values not found in the input.
 
-   Enforce strict validation: if any required field is missing or invalid in the input, do not output a signal for it.
+Enforce strict validation: if any required field is missing or invalid in the input, do not output a signal for it.
 
-   If no valid signals can be parsed, output an empty signals array: {{ "signals": [] }}.
+If no valid signals can be parsed, output an empty signals array: {{ "signals": [] }}.
 
-   Output format example (values are placeholders ONLY - DO NOT COPY):
-   {{
-   "signals": [
-   {{
-   "instrument": "XAUUSD",
-   "signal": "BUY LIMIT",
-   "entry": 3648,
-   "sl": 3644,
-   "tp": 3660,
-   "time": "2025-09-10T13:40:28Z",
-   "source": "Sanitized Signals"
-   }},
-   {{
-   "instrument": "XAUUSD",
-   "signal": "BUY LIMIT",
-   "entry": 3649,
-   "sl": 3644,
-   "tp": 3665,
-   "time": "2025-09-10T13:40:28Z",
-   "source": "Sanitized Signals"
-   }},
-   {{
-   "instrument": "XAUUSD",
-   "signal": "BUY LIMIT",
-   "entry": 3650,
-   "sl": 3644,
-   "tp": 3670,
-   "time": "2025-09-10T13:40:28Z",
-   "source": "Sanitized Signals"
-   }}
-   ]
-   }}
-   
-   
-   ### Input Message:
+Respond ONLY with valid JSON as shown in the example.
+Do not include explanations, notes, or formatting beyond the JSON object.
+
+When calculating TP from pips, evaluate the math and return only the final numeric value (not an expression).
+For example, if Entry = 1960 and TP = Entry + (30 × 0.1), output TP as 1963, not "1960 + (30 × 0.1)".
+All numeric values in the JSON must be numbers only—no arithmetic expressions or symbols.
+
+Output format example (values are placeholders ONLY - DO NOT COPY):
+{{ 
+"signals": [ 
+{{ 
+"instrument": "XAUUSD",
+"signal": "BUY LIMIT",
+"entry": 3648,
+"sl": 3644,
+"tp": 3660,
+"time": "2025-09-10T13:40:28Z",
+"source": "Sanitized Signals" 
+}}, 
+{{ 
+"instrument": "XAUUSD",
+"signal": "BUY LIMIT",
+"entry": 3649,
+"sl": 3644,
+"tp": 3665,
+"time": "2025-09-10T13:40:28Z",
+"source": "Sanitized Signals" 
+}}, 
+{{ 
+"instrument": "XAUUSD",
+"signal": "BUY LIMIT",
+"entry": 3650,
+"sl": 3644,
+"tp": 3670,
+"time": "2025-09-10T13:40:28Z",
+"source": "Sanitized Signals" 
+}} 
+] 
+}} 
+
+### Input Message:
 {text}
-       """
+"""
 # ---------------- AI sanitization ---------------- #
+def evaluate_expressions_in_json(text: str) -> str:
+    def eval_maths(match):
+        expr = match.group(1)
+        try:
+            return str(eval(expr, {}, {}))
+        except Exception:
+            return match.group(0)
+    # detect simple arithmetic inside quotes or after colons
+    return re.sub(r'([0-9]+(?:\s*[+\-*/]\s*[0-9.()]+)+)', eval_maths, text)
+
 async def sanitize_with_ai(signal_text: str, timeout: int = 10) -> str:
     logger.info("🧼 Sanitizing signal: %s", signal_text[:60])
     prompt = test.format(text=signal_text)
@@ -163,8 +188,10 @@ def clean_llm_output(raw: str) -> str:
     if not raw:
         return raw
     cleaned = raw.strip()
+
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"```$", "", cleaned.strip())
+
     return cleaned.strip()
 
 
@@ -174,7 +201,7 @@ def postprocess_ai_output(ai_json_str: str, original_text: str, is_reply: bool) 
     and create a dummy signal if it's a pure manipulation reply.
     """
     cleaned = clean_llm_output(ai_json_str)
-
+    cleaned = evaluate_expressions_in_json(cleaned)
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError:
