@@ -11,7 +11,8 @@ from telethon.sessions import StringSession
 from handlers import register_handlers
 from config import SOURCE_CHANNEL_IDS
 from signal_db import init_db
-
+from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, Form
 init_db()
 load_dotenv()
 
@@ -38,35 +39,66 @@ def get_client():
 
 # ---------- FastAPI — remote session endpoints ----------
 
-@app.get("/login/start")
-async def login_start():
-    """Starts the login process by sending a Telegram login code."""
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    phone = PHONE or ""
+    return f"""
+    <h2>Telegram Session Login</h2>
+    <form action="/login/start" method="post">
+        Telefonnummer: <input type="text" name="phone" value="{phone}" required><br>
+        <input type="submit" value="Login-Code senden">
+    </form>
+    <p>Nach Erhalt des Codes bitte auf <a href="/code">Code-Eingabe</a> gehen.</p>
+    """
+
+@app.post("/login/start")
+async def login_start_form(phone: str = Form(...)):
+    global PHONE
+    PHONE = phone
     client = TelegramClient(StringSession(), API_ID, API_HASH)
     await client.connect()
-    await client.send_code_request(PHONE)
-    pending_clients[PHONE] = client
-    return {"status": "code_sent", "message": f"Login code sent to {PHONE}"}
+    await client.send_code_request(phone)
+    pending_clients[phone] = client
+    return HTMLResponse(f"""
+    <p>Login-Code an {phone} gesendet.</p>
+    <a href="/code">Weiter zur Code-Eingabe</a>
+    """)
 
+@app.get("/code", response_class=HTMLResponse)
+async def code_form():
+    return """
+    <h3>Gib hier den Telegram-Code ein:</h3>
+    <form action="/login/verify" method="post">
+        Code: <input name="code" required><br>
+        2FA-Passwort (falls aktiv): <input name="password" type="password"><br>
+        <input type="submit" value="Session erstellen">
+    </form>
+    """
 
-@app.get("/login/verify")
-async def login_verify(code: str, password: str | None = None):
-    """Verifies the code and returns a StringSession."""
+@app.post("/login/verify", response_class=HTMLResponse)
+async def login_verify_form(code: str = Form(...), password: str = Form(None)):
     client = pending_clients.get(PHONE)
     if not client:
-        return {"error": "no_pending_login"}
-
+        return HTMLResponse("<p>Keine Anmeldung aktiv. Bitte neu starten.</p>", status_code=400)
     try:
         await client.sign_in(phone=PHONE, code=code)
     except Exception:
         if password:
-            await client.sign_in(phone=PHONE, password=password)
+            await client.sign_in(password=password)
         else:
-            raise
-    string = client.session.save()
+            return HTMLResponse("<p>2FA benötigt, aber kein Passwort angegeben.</p>", status_code=400)
+    session_string = client.session.save()
     await client.disconnect()
-    return {"session_string": string}
-
-
+    # Optionally clear pending client
+    del pending_clients[PHONE]
+    return f"""
+    <h3>Session erfolgreich erstellt!</h3>
+    <textarea rows="4" cols="60" readonly>{session_string}</textarea><br>
+    <button onclick="navigator.clipboard.writeText(document.querySelector('textarea').value)">
+      Kopieren
+    </button>
+    <p>Bitte kopiere diesen String in deine Umgebungsvariablen (TELEGRAM_STRING_SESSION) auf Railway.</p>
+    """
 # ---------- main bot runtime ----------
 
 async def main():

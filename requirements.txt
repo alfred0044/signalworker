@@ -8,3 +8,4 @@ JsonExtractor
 flask
 uvicorn
 fastapi
+python-multipart
