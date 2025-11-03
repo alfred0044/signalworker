@@ -66,7 +66,7 @@ test = """
 Your role and rules:
 Extract valid BUY LIMIT and SELL LIMIT orders only. Discard or skip other order types.
 
-For any entry zone given (e.g. 3348–3350), split it evenly into exactly 3 unique entries strictly within the given range.
+For any entry zone given (e.g. 3348–3350), split it evenly into exactly 3 or 4 unique entries strictly within the given range.
 
 Create only one signal per identified entry point.
 
@@ -114,6 +114,14 @@ When calculating TP from pips, evaluate the math and return only the final numer
 For example, if Entry = 1960 and TP = Entry + (30 × 0.1), output TP as 1963, not "1960 + (30 × 0.1)".
 All numeric values in the JSON must be numbers only—no arithmetic expressions or symbols.
 
+If the take profit (TP) list contains a fourth value labeled "Open" (representing no TP), split the entry zone evenly into exactly four unique entries.
+
+Generate four signals:
+- Assign the first three numeric TPs to the first three entries as usual (following BUY/SELL rules).
+- For the fourth entry, assign the same SL but set the TP field to null (JSON null).
+
+Exactly four signals should be output in this case.
+
 Output format example (values are placeholders ONLY - DO NOT COPY):
 {{ 
 "signals": [ 
@@ -141,6 +149,15 @@ Output format example (values are placeholders ONLY - DO NOT COPY):
 "entry": 3650,
 "sl": 3644,
 "tp": 3670,
+"time": "2025-09-10T13:40:28Z",
+"source": "Sanitized Signals" 
+}},
+{{ 
+"instrument": "XAUUSD",
+"signal": "BUY LIMIT",
+"entry": 3650,
+"sl": 3644,
+"tp": 
 "time": "2025-09-10T13:40:28Z",
 "source": "Sanitized Signals" 
 }} 
@@ -224,7 +241,8 @@ def postprocess_ai_output(ai_json_str: str, original_text: str, is_reply: bool) 
             signal["time"] = datetime.utcnow().isoformat() + "Z"
         if "signalid" not in signal:
             signal["signalid"] = str(uuid.uuid4())
-
+        if str(signal.get("tp", "")).lower() in ["", "open", "none"]:
+            signal["tp"] = None
     # ✅ Special case: reply is ONLY a manipulation, AI returned no signals
     if is_reply and manipulations and not data.get("signals"):
         dummy = {
