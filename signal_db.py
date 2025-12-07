@@ -34,6 +34,42 @@ def init_db():
     conn.close()
 
 
+def get_signalid(telegram_message_id: int) -> str | None:
+    """
+    Retrieves the persistent signalid (UUID) associated with a given Telegram message ID.
+
+    This is used for:
+    1. New signals: To check if a signal ID was already generated.
+    2. Manipulations: To find the original signal ID via the reply_to_msg_id.
+    """
+    if not isinstance(telegram_message_id, int):
+        logger.error(f"Invalid message ID type provided: {type(telegram_message_id)}")
+        return None
+
+    # Replace with database lookup: e.g., db.fetch_signalid(telegram_message_id)
+    signal_id = MESSAGE_ID_TO_SIGNAL_ID.get(telegram_message_id)
+
+    if signal_id:
+        logger.debug(f"Found signal ID {signal_id} for message ID {telegram_message_id}.")
+    else:
+        logger.debug(f"No signal ID found for message ID {telegram_message_id}.")
+
+    return signal_id
+
+
+def store_signalid(telegram_message_id: int) -> str:
+    """
+    Generates a new UUID signalid and stores the mapping to the Telegram message ID.
+
+    This is called only when processing a NEW signal for the first time.
+    """
+    new_signal_id = str(uuid.uuid4())
+
+    # Replace with database storage: e.g., db.save_mapping(telegram_message_id, new_signal_id)
+    MESSAGE_ID_TO_SIGNAL_ID[telegram_message_id] = new_signal_id
+
+    logger.info(f"Stored new signal ID {new_signal_id} for message ID {telegram_message_id}.")
+    return new_signal_id
 def store_signalid(telegram_message_id: int, signalid: str = None) -> str:
     """
     Save one signalid for the given Telegram parent message.

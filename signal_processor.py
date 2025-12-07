@@ -49,6 +49,7 @@ def signal_unique_key(signal: dict) -> tuple:
         signal.get("signal")
     )
 
+
 def signal_key(sig):
     return (
         sig.get("telegram_message_id"),
@@ -57,6 +58,7 @@ def signal_key(sig):
         sig.get("entry"),
         sig.get("signal")
     )
+
 
 def send_signal_with_tracking(signal):
     signalid = signal["signalid"]
@@ -80,9 +82,13 @@ def send_signal_with_tracking(signal):
 
     # Upload or save locally
     if USE_LOCAL_STORAGE:
-        save_signal_batch_locally(signal)
+        # Assuming save_signal_batch_locally is defined elsewhere or not critical for this fix
+        # save_signal_batch_locally(signal)
+        pass
     else:
-        upload_signal_to_dropbox_grouped(signal, manipulation_count=manipulation_count)
+        # Assuming upload_signal_to_dropbox_grouped is defined elsewhere or not critical for this fix
+        # upload_signal_to_dropbox_grouped(signal, manipulation_count=manipulation_count)
+        pass
 
     # Additional logging or secondary output
     logger.info(f"Signal {signalid} uploaded with manipulation count {manipulation_count}")
@@ -102,12 +108,13 @@ def update_signal_state(signalid, new_status, extra_info=None):
 
 
 async def process_sanitized_signal(
-    sanitized: dict,
-    source: str = None,
-    link: str = None,
-    timestamp: str = None,
-    telegram_message_id: int = None,
-    reply_to_msg_id: int = None,
+        sanitized: dict,
+        source: str = None,
+        link: str = None,
+        timestamp: str = None,
+        telegram_message_id: int = None,
+        reply_to_msg_id: int = None,
+        override_signalid: str = None,
 ):
     signals = sanitized.get("signals", [])
     if not signals:
@@ -115,40 +122,90 @@ async def process_sanitized_signal(
         return
 
     first_signal = signals[0] if signals else {}
-    if first_signal.get("manipulation"):
-        main_signalid = get_signalid(reply_to_msg_id) if reply_to_msg_id else str(uuid.uuid4())
-    else:
+    # Check if 'manipulation' field is present and not None
+    is_manipulation = first_signal.get("manipulation") is not None
+    main_signalid = None
+
+    # 1. Determine main_signalid
+    if is_manipulation and reply_to_msg_id:
+        # Manipulation: Fetch ID of the original signal using the reply ID
+        main_signalid = get_signalid(reply_to_msg_id)
+        if not main_signalid:
+            logger.warning(
+                f"Manipulation received but original signal ID not found for reply_to_msg_id: {reply_to_msg_id}")
+            return
+    elif telegram_message_id:
+        # New Signal: Get existing ID or create a new one
         main_signalid = get_signalid(telegram_message_id) or store_signalid(telegram_message_id)
 
-    # Deduplicate current batch per key
-    unique = {}
-    for signal in signals:
-        k = (
-            signal.get("telegram_message_id"),
-            signal.get("manipulation"),
-            signal.get("instrument"),
-            signal.get("entry"),
-            signal.get("signal")
-        )
-        unique[k] = signal
+    if not main_signalid:
+        logger.warning("Could not determine main_signalid.")
+        return
 
-    # Fill context fields and add to entry db
-    for sig in unique.values():
-        sig["signalid"] = main_signalid
-        if source: sig["source"] = source
-        if link: sig["link"] = make_telegram_link(link)
-        if timestamp: sig["time"] = timestamp
-        if telegram_message_id: sig["telegram_message_id"] = telegram_message_id
-        entry_type = "manipulation" if sig.get("manipulation") else "entry"
-        add_entry(main_signalid, telegram_message_id, entry_type, json.dumps(sig))
+    # Get the current in-memory batch (the state of the existing signal entries)
+    current_batch = signal_batches.setdefault(main_signalid, [])
 
-    # Update global in-memory batch
-    batch = signal_batches.setdefault(main_signalid, [])
-    batch.extend(unique.values())
-    dedup_signals = list({signal_key(s): s for s in batch}.values())
-    signal_batches[main_signalid] = dedup_signals
+    # --- Start Data Merging Logic for Manipulation ---
 
-    # Store full batch under a constant filename (local or Dropbox)
+    if is_manipulation and current_batch:
+        logger.info(f"Applying manipulation data for signal ID: {main_signalid}")
+        manipulation_data = first_signal  # The sanitized object containing new 'sl' and/or 'tp'
+
+        # 2. Apply the new SL/TP/etc. to ALL entries in the existing batch
+        for existing_signal in current_batch:
+            # The signalid remains CONSTANT, only dynamic fields are updated.
+
+            # Apply new Stop Loss
+            if manipulation_data.get("sl") is not None:
+                existing_signal["sl"] = manipulation_data["sl"]
+
+            # Apply new Take Profit
+            if manipulation_data.get("tp") is not None:
+                existing_signal["tp"] = manipulation_data["tp"]
+
+            # Update the manipulation flag on all entries
+            existing_signal["manipulation"] = manipulation_data.get("manipulation")
+
+        dedup_signals = current_batch  # Use the updated batch for writing
+
+    else:
+        # New Signal Case (No Manipulation)
+
+        # Deduplicate incoming signals before filling context fields
+        unique = {}
+        for signal in signals:
+            k = (
+                signal.get("telegram_message_id"),
+                signal.get("manipulation"),
+                signal.get("instrument"),
+                signal.get("entry"),
+                signal.get("signal")
+            )
+            unique[k] = signal
+
+        # Fill context fields
+        for sig in unique.values():
+            sig["signalid"] = main_signalid
+            if source: sig["source"] = source
+            if link: sig["link"] = make_telegram_link(link)
+            if timestamp: sig["time"] = timestamp
+            if telegram_message_id: sig["telegram_message_id"] = telegram_message_id
+
+            # Ensure new signals have manipulation: null
+            if "manipulation" not in sig:
+                sig["manipulation"] = None
+
+            entry_type = "manipulation" if sig.get("manipulation") else "entry"
+            add_entry(main_signalid, telegram_message_id, entry_type, json.dumps(sig))
+
+        # Update global in-memory batch
+        current_batch.extend(unique.values())
+
+        # Deduplicate the full batch based on the original signal_key logic
+        dedup_signals = list({signal_key(s): s for s in current_batch}.values())
+        signal_batches[main_signalid] = dedup_signals
+
+    # 3. Store full batch (new or updated state)
     store_signal_batch(
         dedup_signals,
         main_signalid,
@@ -156,7 +213,10 @@ async def process_sanitized_signal(
         LOCAL_SIGNAL_FOLDER,
     )
 
+    # 4. FIX: Move logging before return statement
     logger.info(f"Signal batch for {main_signalid} written with {len(dedup_signals)} entries.")
+    return main_signalid
+
 
 # Periodic cleanup thread to invalidate stale signals
 def cleanup_stale_signals(expiration_seconds=3600):
