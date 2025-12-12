@@ -111,6 +111,18 @@ Extract instrument name, signal type (BUY LIMIT, SELL LIMIT), entry points, stop
 
 TP levels can be absolute prices (e.g. 1974, 1980) or values in pips (e.g. 30 pips, 50 pips).
 
+1.  INSTRUMENT STANDARDIZATION: The value for "instrument" MUST be converted to the standardized format listed below, regardless of the input text (e.g., if the text says "Gold", output "XAUUSD").
+    - Gold: XAUUSD
+    - Silver: XAGUSD
+    - Bitcoin: BTCUSD (or BTC/USD)
+    - US30 / Dow Jones: US30
+    - Nasdaq: US100
+    - If a symbol is not recognized, output the symbol as-is (e.g., EURUSD).
+
+2.  SIGNAL STANDARDIZATION: The value for "signal" MUST be standardized as one of the following official trading order types:
+    - If the input is "Buy" or "Long", output: BUY LIMIT
+    - If the input is "Sell" or "Short", output: SELL LIMIT
+    - If the input already contains "LIMIT" or "STOP", output the full phrase (e.g., SELL LIMIT or BUY STOP).
 
 Output JSON format example:
 
@@ -126,18 +138,6 @@ If TP contains "Open", output four entries with the last entry having tp: null.
 Only output valid JSON with these fields, no explanations or extra text.
 
 
-**IF THE MESSAGE IS A MANIPULATION (e.g., SL change, TP adjustment, Partial Close):**
-1. Output ONLY the changed fields (e.g., just 'sl' and 'tp').
-2. Include the field "manipulation" and set its value to a brief description (e.g., "SL_CHANGE", "TP_UPDATE", "CLOSE_HALF").
-3. Include the field "instrument".
-
-Example Manipulation JSON:
-
-{{
-  "instrument": "XAUUSD",
-  "sl": 4001,
-  "manipulation": "SL_CHANGE"
-}}
 {text}
 """
 
@@ -271,8 +271,8 @@ def extract_manual_manipulation(text: str, instrument: str, signalid: str) -> di
         }
 
     # 4. Look for PIPS profit reports (e.g., +150 pips, might signal partial close)
-    pips_match = re.search(r"(\+?-?\d+)\s*pips", text_lower)
-    if pips_match:
+    if any(cmd in text_lower for cmd in
+           ["pips", "active", "hit entry"]):
         return {
             "instrument": instrument,
             "signalid": signalid,
