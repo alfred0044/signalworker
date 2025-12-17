@@ -98,7 +98,7 @@ def should_ignore_message(text: str) -> bool:
 
 
     # Manipulation Check
-    manipulation_cmds = ["close all", "close at entry", "move sl to", "cancel pending", "cancel", "close"]
+    manipulation_cmds = ["close all", "close at entry", "move sl to", "cancel pending", "cancel", "close", "set be", "break even"]
     has_manipulation_cmd = any(cmd in text_lower for cmd in manipulation_cmds)
     manipulation_commands_present = has_manipulation_cmd or bool(is_pips_manipulation)
 
