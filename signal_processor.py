@@ -10,7 +10,7 @@ from signal_db import store_signalid, get_signalid, add_entry
 import json
 import os
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 USE_LOCAL_STORAGE = os.getenv("USE_LOCAL_STORAGE", "False").lower() in ("true", "1", "yes")
 LOCAL_SIGNAL_FOLDER = os.getenv("LOCAL_SIGNAL_FOLDER")
 LOCAL_HISTORICAL_FOLDER = os.getenv("LOCAL_HISTORICAL_FOLDER", "historical_signals_storage")
