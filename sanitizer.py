@@ -22,13 +22,21 @@ if not logger.hasHandlers():
 AI_MODEL = os.getenv("AI_MODEL", "llama-3.3-70b-versatile")
 AI_BASE_URL = os.getenv("AI_BASE_URL", "https://api.groq.com/openai/v1")
 AI_KEY = os.getenv("AI_KEY", os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY"))
-
+instrument = "XAUUSD"
 if not AI_KEY:
     raise RuntimeError("❌ Missing AI_KEY (set GROQ_API_KEY or OPENAI_API_KEY in .env)")
 
 client = OpenAI(api_key=AI_KEY, base_url=AI_BASE_URL)
+# sanitizer.py (DIESER BLOCK ERSETZT IHRE VORHANDENE SANITIZE_SIGNAL FUNKTION)
 
-# --- TP calculation helper ---
+from typing import List, Dict, Any  # <-- Sicherstellen, dass dies ganz oben importiert ist
+
+
+# Main async sanitizer function
+# sanitizer.py (DIESER BLOCK ERSETZT IHRE VORHANDENE SANITIZE_SIGNAL FUNKTION)
+
+from typing import List, Dict, Any  # <-- Sicherstellen, dass dies ganz oben importiert ist
+
 def calc_tp_from_pips(entry, pips, signal_type):
     pips_str = str(pips)
     match = re.search(r'(\d+)', pips_str)
@@ -42,7 +50,6 @@ def calc_tp_from_pips(entry, pips, signal_type):
         return round(entry - movement, 2)
     return None
 
-# --- TP assignment helper ---
 def assign_tp_values(entries, raw_tps, signal_type):
     if len(raw_tps) == 4:
         start, end = entries[0], entries[-1]
@@ -71,28 +78,27 @@ def assign_tp_values(entries, raw_tps, signal_type):
                 tps.append(None)
     return entries, tps
 
-# --- Create signals ---
-def create_signals(instrument, signal_type, entries, sl, raw_tps, time_=None, source="Sanitized Signals",
-                   link=None, telegram_message_id=None):
+def create_signals(instrument, signal_type, entries, sl, raw_tps,
+                   time_=None, source="Sanitized Signals", link=None): # link hinzufügen
+
     time_ = time_ or datetime.utcnow().isoformat() + "Z"
     entries, tps = assign_tp_values(entries, raw_tps, signal_type)
     signals = []
     for i, entry in enumerate(entries):
-        signal = {
+        sig_obj = {
             "instrument": instrument,
             "signal": signal_type,
             "entry": entry,
             "sl": sl,
             "tp": tps[i] if i < len(tps) else None,
-            "time": time_,
+            "time": time_ or datetime.utcnow().isoformat() + "Z",
             "source": source,
             "signalid": str(uuid.uuid4()),
+            "manipulation": None
         }
         if link:
-            signal["link"] = link
-        if telegram_message_id:
-            signal["telegram_message_id"] = telegram_message_id
-        signals.append(signal)
+            sig_obj["link"] = link  # HIER wird der Link ins JSON geschrieben
+        signals.append(sig_obj)
     return signals
 
 def clean_llm_output(raw: str) -> str:
@@ -101,11 +107,10 @@ def clean_llm_output(raw: str) -> str:
     cleaned = raw.strip()
     # Remove leading triple backticks and optional 'json' or similar, allowing newline after
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
-    print(cleaned)
     # Remove trailing triple backticks, possibly preceded by newline and whitespace
     cleaned = re.sub(r"\s*```", "", cleaned)
     return cleaned.strip()
-# Prompt template for AI extraction with escaped braces
+
 ai_prompt = """
 Extract instrument name, signal type (BUY LIMIT, SELL LIMIT), entry points, stop loss (SL), and take profit levels (TP).
 
@@ -141,7 +146,6 @@ Only output valid JSON with these fields, no explanations or extra text.
 {text}
 """
 
-# Async call to AI
 async def sanitize_with_ai(signal_text: str, timeout: int = 10) -> str:
     prompt = ai_prompt.format(text=signal_text)
     try:
@@ -160,80 +164,125 @@ async def sanitize_with_ai(signal_text: str, timeout: int = 10) -> str:
     except Exception as e:
         logger.error("❌ AI sanitization failed: %s", e, exc_info=True)
         return ""
-# Postprocess AI output (basic example)
-def postprocess_ai_output(ai_json_str: str, original_text: str, is_reply: bool) -> dict:
-    try:
-        data = json.loads(ai_json_str)
-    except json.JSONDecodeError as e:
-        logger.warning(f"⚠️ AI output invalid JSON: {e}")
-        return {"signals": []}
-    # You can add more validation/normalization here
-    return data
 
-# Main async sanitizer function
-async def sanitize_signal(signal_text: str, is_reply: bool = False, timeout: int = 10,main_signalid: str = None) -> dict:
-    print(is_reply,"is_reply",main_signalid,"main_signalid")
-    if is_reply and main_signalid:  # Ensure we have the ID for manipulation
-        # NOTE: If instrument is not in the manipulation message, you might need a lookup
-        # here or rely on the processor to fetch the instrument from the batch.
-        # For simplicity, we assume XAUUSD or fetch a default.
-        manipulation_result = extract_manual_manipulation(
-            signal_text,
-            instrument="XAUUSD",  # Placeholder/default, or look up from original signal
-            signalid=main_signalid
-        )
-        print(manipulation_result)
-        print("SS")
-        if manipulation_result:
-            return {"signals": [manipulation_result]}
-    # --- END NEW LOGIC ---
-
-    ai_output = await sanitize_with_ai(signal_text, timeout=timeout)
-    cleaned_output = clean_llm_output(ai_output)
-    try:
-        data = json.loads(cleaned_output)
-    except json.JSONDecodeError as e:
-        logger.warning(f"⚠️ AI output JSON decode error: {e}")
-        return {"signals": []}
-
-    if data.get("manipulation") is not None:
-        # 💡 FIX: If 'manipulation' is present, return the raw data object directly.
-        # This raw object contains the updated 'sl' or 'tp' and the 'manipulation' flag
-        # required by signal_processor.py to trigger the merge logic.
-        return {"signals": [data]}
-
-    # Your existing postprocessing & signal creation logic below...
-    if "signals" in data:
+    def postprocess_ai_output(ai_json_str: str, original_text: str, is_reply: bool) -> dict:
+        try:
+            data = json.loads(ai_json_str)
+        except json.JSONDecodeError as e:
+            logger.warning(f"⚠️ AI output invalid JSON: {e}")
+            return {"signals": []}
+        # You can add more validation/normalization here
         return data
 
-    instrument = data.get("instrument")
-    signal_type = data.get("signal")
-    entries = data.get("entries", [])
-    sl = data.get("sl")
-    tps = data.get("tps", [])
 
-    if not instrument or not signal_type or not entries or sl is None or not tps:
+# Main async sanitizer function
+async def sanitize_signal(signal_text: str, is_reply: bool = False, timeout: int = 10, main_signalid: str = None,
+                          link: str = None, source: str = None) -> dict:
+    print(is_reply, "is_reply", main_signalid, "main_signalid")
+
+    # ----------------------------------------
+    # 1. HANDLE MANIPULATION (Reply)
+    # ----------------------------------------
+    if is_reply and main_signalid:
+        # Verwenden Sie den global definierten Fallback
+        local_instrument = globals().get('instrument', 'XAUUSD')
+
+        # extract_manual_manipulation MUSS VORHER DEFINIERT SEIN (siehe Schritt 2)
+        manipulation_result = extract_manual_manipulation(
+            signal_text,
+            instrument=local_instrument,
+            signalid=main_signalid
+        )
+
+        if manipulation_result:
+            if link:
+                manipulation_result["link"] = link
+            return {"signals": [manipulation_result]}
+
         return {"signals": []}
 
-    # 💡 IMPORTANT: Ensure the NEW signals have "manipulation": null for consistency
-    signals = create_signals(instrument, signal_type, entries, sl, tps)
-    for s in signals:
-        s["manipulation"] = None  # Set default to null/None
+        # ----------------------------------------
+    # 2. HANDLE NEUES SIGNAL (AI Parsing)
+    # ----------------------------------------
 
-    return {"signals": signals}
+    # NEU: KI aufrufen (sanitize_with_ai MUSS VORHER DEFINIERT SEIN)
+    ai_output = await sanitize_with_ai(signal_text, timeout=timeout)
+    if not ai_output:
+        logger.warning("AI did not return any output.")
+        return {"signals": []}
 
-# Example main run
-if __name__ == "__main__":
-    test_message = """
-    🟢 XAUUSD BUY LIMIT
-    Entry: 1930 - 1932
-    SL: 1920
-    TP: 30 pips – 50 pips – 80 pips - Open
-    """
-    result = asyncio.run(sanitize_signal(test_message))
-    print("Sanitized signals output:")
-    print(json.dumps(result, indent=2))
+    # NEU: Robustes Multi-JSON-Parsing (definiert 'json_objects' und 'extracted_ideas')
+    extracted_ideas: List[Dict[str, Any]] = []
 
+    raw_json_text = ai_output.replace("```json", "").replace("```", "").strip()
+    json_objects = re.findall(r'\{[^}]*\}', raw_json_text)
+
+    if not json_objects:
+        logger.warning(f"⚠️ AI output is not valid JSON (no complete objects found): {ai_output}")
+        return {"signals": []}
+
+    for json_str in json_objects:
+        try:
+            obj = json.loads(json_str.strip())
+            if isinstance(obj, dict) and obj.get("instrument"):
+                extracted_ideas.append(obj)
+        except json.JSONDecodeError as e:
+            logger.warning(f"⚠️ Failed to parse sub-JSON object: {e}. Object: {json_str[:50]}...")
+            continue
+
+    if not extracted_ideas:
+        logger.warning("⚠️ No valid signal ideas extracted after robust parsing.")
+        return {"signals": []}
+
+    # ----------------------------------------
+    # 3. CONVERT IDEAS TO ATOMIC SIGNALS
+    # ----------------------------------------
+
+    final_signals: List[Dict[str, Any]] = []
+
+    for idea in extracted_ideas:
+        # create_signals MUSS VORHER DEFINIERT SEIN
+        instrument_ = idea.get("instrument") or "UNKNOWN"
+        signal_type_ = idea.get("signal") or "BUY LIMIT"
+        entries_ = idea.get("entries") or []
+        sl_ = idea.get("sl")
+        tps_ = idea.get("tps") or []
+
+        if not entries_ or not instrument_:
+            logger.warning(f"Skipping idea due to missing entries/instrument: {idea}")
+            continue
+
+        try:
+            atomic_signals = create_signals(
+                instrument_,
+                signal_type_,
+                entries_,
+                sl_,
+                tps_,
+                source=source or "Sanitized Signals",
+                link=link
+            )
+            final_signals.extend(atomic_signals)
+        except Exception as e:
+            logger.error(f"Error processing idea with create_signals: {e}, Idea: {idea}")
+            continue
+
+    return {"signals": final_signals}
+# --- TP calculation helper ---
+
+# --- TP assignment helper ---
+
+# --- Create signals ---
+
+
+# Prompt template for AI extraction with escaped braces
+
+
+# Async call to AI
+
+# Postprocess AI output (basic example)
+
+# Main async sanitizer function
 
 def extract_manual_manipulation(text: str, instrument: str, signalid: str) -> dict | None:
     text_lower = text.lower().strip()
@@ -282,3 +331,15 @@ def extract_manual_manipulation(text: str, instrument: str, signalid: str) -> di
     # If it's a reply but contains no detectable manipulation command, return None
     # and let it fall through to the AI parser if necessary (e.g. for non-standard updates).
     return None
+# Example main run
+if __name__ == "__main__":
+    test_message = """
+    🟢 XAUUSD BUY LIMIT
+    Entry: 1930 - 1932
+    SL: 1920
+    TP: 30 pips – 50 pips – 80 pips - Open
+    """
+    result = asyncio.run(sanitize_signal(test_message))
+
+
+

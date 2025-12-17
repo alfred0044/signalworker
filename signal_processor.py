@@ -12,6 +12,7 @@ import os
 
 USE_LOCAL_STORAGE = os.getenv("USE_LOCAL_STORAGE", "False").lower() in ("true", "1", "yes")
 LOCAL_SIGNAL_FOLDER = os.getenv("LOCAL_SIGNAL_FOLDER")
+LOCAL_HISTORICAL_FOLDER = os.getenv("LOCAL_HISTORICAL_FOLDER", "historical_signals_storage")
 sent_signal_keys = set()
 sent_signal_lock = threading.Lock()
 app = Flask(__name__)
@@ -115,7 +116,9 @@ async def process_sanitized_signal(
         telegram_message_id: int = None,
         reply_to_msg_id: int = None,
         override_signalid: str = None,
+        is_historical: bool = False
 ):
+    storage_folder = LOCAL_HISTORICAL_FOLDER if is_historical else LOCAL_SIGNAL_FOLDER
     signals = sanitized.get("signals", [])
     if not signals:
         logger.warning("⚠️ No signals found.")
@@ -151,22 +154,32 @@ async def process_sanitized_signal(
         logger.info(f"Applying manipulation data for signal ID: {main_signalid}")
         manipulation_data = first_signal  # The sanitized object containing new 'sl' and/or 'tp'
 
-        # 2. Apply the new SL/TP/etc. to ALL entries in the existing batch
-        for existing_signal in current_batch:
-            # The signalid remains CONSTANT, only dynamic fields are updated.
+        # NEUER EINTRAG FÜR MANIPULATION:
+        # Manipulationen werden nun als eigenständiger Eintrag mit dem Zeitstempel der Manipulation hinzugefügt,
+        # anstatt die bestehenden Einträge zu überschreiben.
 
-            # Apply new Stop Loss
-            if manipulation_data.get("sl") is not None:
-                existing_signal["sl"] = manipulation_data["sl"]
+        # Kontextfelder für den neuen Manipulationseintrag füllen
+        new_manipulation_entry = {
+            "signalid": main_signalid,
+            "manipulation": manipulation_data.get("manipulation"),
+            "instrument": manipulation_data.get("instrument"),
+            "link": make_telegram_link(link) if link else None,
+            "source": source,
+            "time": timestamp,
+            "telegram_message_id": telegram_message_id
+            # Optional: Übernehmen von SL/TP-Updates, falls vorhanden,
+            # obwohl das "manipulation"-Feld in der Regel die Aktion beschreibt.
+        }
 
-            # Apply new Take Profit
-            if manipulation_data.get("tp") is not None:
-                existing_signal["tp"] = manipulation_data["tp"]
+        # Hinzufügen des Manipulationseintrags zur Batch
+        current_batch.append(new_manipulation_entry)
 
-            # Update the manipulation flag on all entries
-            existing_signal["manipulation"] = manipulation_data.get("manipulation")
+        # Die ursprüngliche Logik zur Aktualisierung der SL/TP-Werte in der Batch
+        # ist für die meisten Manipulationsarten NICHT gewünscht, da sie historische
+        # Daten überschreibt. Wir entfernen die Logik, die in-place die SL/TPs aller
+        # vorherigen Einträge ändert, um eine saubere Historie zu gewährleisten.
 
-        dedup_signals = current_batch  # Use the updated batch for writing
+        dedup_signals = current_batch
 
     else:
         # New Signal Case (No Manipulation)
@@ -174,13 +187,7 @@ async def process_sanitized_signal(
         # Deduplicate incoming signals before filling context fields
         unique = {}
         for signal in signals:
-            k = (
-                signal.get("telegram_message_id"),
-                signal.get("manipulation"),
-                signal.get("instrument"),
-                signal.get("entry"),
-                signal.get("signal")
-            )
+            k = signal_key(signal)
             unique[k] = signal
 
         # Fill context fields
@@ -206,11 +213,23 @@ async def process_sanitized_signal(
         signal_batches[main_signalid] = dedup_signals
 
     # 3. Store full batch (new or updated state)
+
+    # NEUER SCHRITT: Chronologische Sortierung der Einträge
+    if dedup_signals:
+        try:
+            # Das 'time'-Feld ist ein ISO-8601-String. Lexikographische Sortierung ist chronologisch korrekt.
+            # Fallback auf einen sehr alten Timestamp, falls 'time' fehlt, um diesen Eintrag an den Anfang zu setzen.
+            dedup_signals.sort(key=lambda s: s.get("time", "1970-01-01T00:00:00Z"), reverse=False)
+            logger.info(f"Signal batch for {main_signalid} successfully sorted chronologically.")
+        except Exception as e:
+            logger.error(f"Failed to sort signals for {main_signalid}: {e}")
+            # Fährt fort mit dem Speichern, auch wenn die Sortierung fehlschlägt.
+
     store_signal_batch(
         dedup_signals,
         main_signalid,
         USE_LOCAL_STORAGE,
-        LOCAL_SIGNAL_FOLDER,
+        LOCAL_SIGNAL_FOLDER=storage_folder,
     )
 
     # 4. FIX: Move logging before return statement
