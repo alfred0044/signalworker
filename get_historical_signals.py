@@ -1,317 +1,142 @@
 import asyncio
-from sanitizer import sanitize_signal
-from signal_processor import process_sanitized_signal
+import os
+import sys
+import json
 from datetime import datetime, timezone
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.types import PeerChannel
 from dotenv import load_dotenv
-import os
-import sys
 import aiofiles
-import json
+
+# Importiere zentrale Logik aus den Modulen
+from handlers import register_handlers
+
+# Hinweis: 'sanitizer' und 'signal_processor' müssen hier nicht importiert werden,
+# da sie bereits von 'handlers.py' importiert und verwendet werden.
+LOCAL_HISTORICAL_FOLDER = "local_signals"
+
+# Lade Umgebungsvariablen aus .env
 load_dotenv()
 
-API_ID = int(os.getenv("TELEGRAM_API_ID"))
-API_HASH = os.getenv("TELEGRAM_API_HASH")
+# --- GLOBALE KONFIGURATION ---
+try:
+    API_ID = int(os.getenv("TELEGRAM_API_ID"))
+    API_HASH = os.getenv("TELEGRAM_API_HASH")
+except (TypeError, ValueError):
+    print("❌ Fehler: TELEGRAM_API_ID oder API_HASH fehlt oder ist ungültig in der .env-Datei.")
+    sys.exit(1)
+
 SESSION_STRING = os.getenv("TELEGRAM_STRING_SESSION")
-
-
+TELEGRAM_PASSWORD = os.getenv("TELEGRAM_PASSWORD")  # Für client.start()
 SAVE_DIR = "saved_signals"
+
+
+# --- HILFSFUNKTIONEN (für Audit und Konvertierung) ---
 
 async def store_sanitized_json(data: dict, source: str, telegram_message_id: int):
     """
-    Save sanitized JSON data to a file for audit or debugging.
-    Creates 'saved_signals' directory if it doesn't exist.
+    Speichert bereinigte Signaldaten in einer JSON-Datei zu Audit-Zwecken.
+    (Optional, nur für die Speicherung der historischen Daten im Filesystem)
     """
     os.makedirs(SAVE_DIR, exist_ok=True)
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     safe_source = "".join(c if c.isalnum() else "_" for c in source or "unknown")
     filename = f"{timestamp}_{safe_source}_{telegram_message_id}.json"
     path = os.path.join(SAVE_DIR, filename)
-    print ("saved")
+
     try:
         async with aiofiles.open(path, "w", encoding="utf-8") as f:
+            # Speichert die rohe, bereinigte JSON-Struktur, bevor der Prozessor sie verarbeitet
             await f.write(json.dumps(data, indent=2, ensure_ascii=False))
+        print(f"✅ Gespeichert: {filename}")
         return path
     except Exception as e:
-        print(f"⚠️ Failed to save sanitized JSON: {e}")
+        print(f"⚠️ Fehler beim Speichern der bereinigten JSON: {e}")
         return None
-def register_handlers(client, source_channels):
-    @client.on(events.NewMessage(1==1))
-    async def handler(event):
-        text = event.raw_text.strip()
-        print(text)
-        if not text:
-            return
 
-        sanitized = await sanitize_signal(
-            signal_text=text,
-            is_reply=event.message.is_reply
-        )
 
-        await process_sanitized_signal(
-            sanitized,
-            source=event.chat.title,
-            link=f"https://t.me/c/{abs(event.chat_id)}/{event.id}",
-            timestamp=str(event.message.date),
-            telegram_message_id=event.id,
-            reply_to_msg_id=event.message.reply_to_msg_id  # NEW
-        )
-
-def to_peer_channel(channel_id):
+def to_peer_channel(channel_id: str | int) -> PeerChannel | int:
+    """
+    Konvertiert Telegram-IDs in Telethon PeerChannel-Objekte.
+    """
     if isinstance(channel_id, str) and channel_id.startswith("-100"):
-        channel_id = int(channel_id[4:])  # Remove the '-100' prefix
+        channel_id = int(channel_id[4:])
     if isinstance(channel_id, int):
         return PeerChannel(channel_id=channel_id)
     return channel_id
 
 
-def parse_args():
-    if len(sys.argv) < 2:
-        print("Usage: python main.py <channel_id> [source_channel_ids_comma_separated] [start_date] [end_date]")
-        sys.exit(1)
-
-    channel_id = sys.argv[1]
-
-    source_channel_ids = []
-    start_date = None
-    end_date = None
-
-    # Attempt to parse source_channel_ids if provided
-    if len(sys.argv) >= 3:
-        arg = sys.argv[2]
-        if "," in arg:  # heuristic: if comma exists, parse IDs
-            try:
-                source_channel_ids = list(map(int, arg.split(',')))
-            except ValueError:
-                print(f"Invalid source_channel_ids: {arg}")
-                sys.exit(1)
-        else:
-            # If no comma, might be start_date instead, so treat arg 2 as date
-            try:
-                start_date = datetime.strptime(arg, "%Y-%m-%d")
-                # Try parsing end_date if it exists
-                if len(sys.argv) >= 4:
-                    end_date = datetime.strptime(sys.argv[3], "%Y-%m-%d")
-            except ValueError:
-                print(f"Invalid date format: {arg}")
-                sys.exit(1)
-
-    # If 3rd argument was source_channel_ids, parse dates from later args
-    if source_channel_ids and len(sys.argv) >= 4:
-        try:
-            start_date = datetime.strptime(sys.argv[3], "%Y-%m-%d")
-            if len(sys.argv) >= 5:
-                end_date = datetime.strptime(sys.argv[4], "%Y-%m-%d")
-        except ValueError:
-            print(f"Invalid date format in arguments.")
-            sys.exit(1)
-
-    return channel_id, source_channel_ids, start_date, end_date
-
-
-def get_client():
-    if not SESSION_STRING:
-        raise RuntimeError("TELEGRAM_STRING_SESSION missing!")
-    return TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
-
-
-def make_aware(dt):
+def make_aware(dt: datetime | None) -> datetime | None:
+    """
+    Stellt sicher, dass das datetime-Objekt zeitzonenbewusst ist (UTC).
+    """
     if dt and dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
 
 
-async def fetch_channel_history(client, channel_id, limit=None, min_date=None, max_date=None):
-    min_date = make_aware(min_date)
-    max_date = make_aware(max_date)
+# --- TELETHON CLIENT LOGIK ---
 
-    messages = []
-    peer = to_peer_channel(channel_id)
-    async for message in client.iter_messages(peer, limit=limit, reverse=False):
-        # Skip messages out of the max_date range
-        if max_date and message.date > max_date:
-            continue
-        # Break if message is before min_date since messages descend by date
-        if min_date and message.date < min_date:
-            break
-        messages.append(message)
-    return messages
-
-
-
-
-import asyncio
-from sanitizer import sanitize_signal
-from signal_processor import process_sanitized_signal
-from datetime import datetime, timezone
-from telethon import TelegramClient, events
-from telethon.sessions import StringSession
-from telethon.tl.types import PeerChannel
-from dotenv import load_dotenv
-import os
-import sys
-
-load_dotenv()
-
-API_ID = int(os.getenv("TELEGRAM_API_ID"))
-API_HASH = os.getenv("TELEGRAM_API_HASH")
-SESSION_STRING = os.getenv("TELEGRAM_STRING_SESSION")
-
-def register_handlers(client, source_channels):
-    @client.on(events.NewMessage(chats=source_channels))
-    async def handler(event):
-        text = event.raw_text.strip()
-        if not text:
-            return
-
-        sanitized = await sanitize_signal(
-            signal_text=text,
-            is_reply=event.message.is_reply
-        )
-        await store_sanitized_json(
-            sanitized,
-            source=event.chat.title,
-            telegram_message_id=event.id,
-        )
-
-        trade_signals, manipulations = split_signals_and_manipulations(sanitized)
-
-        if trade_signals:
-            await process_sanitized_signal(
-                {"signals": trade_signals},
-                source=event.chat.title,
-                link=f"https://t.me/c/{abs(event.chat_id)}/{event.id}",
-                timestamp=str(event.message.date),
-                telegram_message_id=event.id,
-                reply_to_msg_id=event.message.reply_to_msg_id,
-            )
-
-
-
-        if manipulations:
-            await process_sanitized_signal(
-                {"signals": manipulations},
-                source=event.chat.title,
-                link=f"https://t.me/c/{abs(event.chat_id)}/{event.id}",
-                timestamp=str(event.message.date),
-                telegram_message_id=event.id,
-                reply_to_msg_id=event.message.reply_to_msg_id,
-            )
-def split_signals_and_manipulations(sanitized):
-    trade_signals = []
-    manipulations = []
-    for sig in sanitized.get("signals", []):
-        if sig.get("manipulation"):
-            manipulations.append(sig)
-        else:
-            trade_signals.append(sig)
-    return trade_signals, manipulations
-
-def to_peer_channel(channel_id):
-    if isinstance(channel_id, str) and channel_id.startswith("-100"):
-        channel_id = int(channel_id[4:])  # Remove the '-100' prefix
-    if isinstance(channel_id, int):
-        return PeerChannel(channel_id=channel_id)
-    return channel_id
-
-def parse_args():
-    if len(sys.argv) < 2:
-        print("Usage: python main.py <channel_id> [source_channel_ids_comma_separated] [start_date] [end_date]")
-        sys.exit(1)
-
-    channel_id = sys.argv[1]
-
-    source_channel_ids = []
-    start_date = None
-    end_date = None
-
-    # Attempt to parse source_channel_ids if provided
-    if len(sys.argv) >= 3:
-        arg = sys.argv[2]
-        if "," in arg:  # heuristic: if comma exists, parse IDs
-            try:
-                source_channel_ids = list(map(int, arg.split(',')))
-            except ValueError:
-                print(f"Invalid source_channel_ids: {arg}")
-                sys.exit(1)
-        else:
-            # If no comma, might be start_date instead, so treat arg 2 as date
-            try:
-                start_date = datetime.strptime(arg, "%Y-%m-%d")
-                # Try parsing end_date if it exists
-                if len(sys.argv) >= 4:
-                    end_date = datetime.strptime(sys.argv[3], "%Y-%m-%d")
-            except ValueError:
-                print(f"Invalid date format: {arg}")
-                sys.exit(1)
-
-    # If 3rd argument was source_channel_ids, parse dates from later args
-    if source_channel_ids and len(sys.argv) >= 4:
-        try:
-            start_date = datetime.strptime(sys.argv[3], "%Y-%m-%d")
-            if len(sys.argv) >= 5:
-                end_date = datetime.strptime(sys.argv[4], "%Y-%m-%d")
-        except ValueError:
-            print(f"Invalid date format in arguments.")
-            sys.exit(1)
-
-    return channel_id, source_channel_ids, start_date, end_date
-
-
-def get_client():
+def get_client() -> TelegramClient:
+    """
+    Erstellt und gibt den Telethon-Client zurück.
+    """
     if not SESSION_STRING:
-        raise RuntimeError("TELEGRAM_STRING_SESSION missing!")
+        raise RuntimeError("TELEGRAM_STRING_SESSION fehlt!")
     return TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
 
-def make_aware(dt):
-    if dt and dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt
-
-
-async def fetch_channel_history(client, channel_id, limit=None, min_date=None, max_date=None):
+async def fetch_channel_history(client: TelegramClient, channel_id: str | int, limit=None, min_date=None,
+                                max_date=None) -> list:
+    """
+    Ruft historische Nachrichten aus einem Kanal im gegebenen Datumsbereich ab.
+    """
     min_date = make_aware(min_date)
     max_date = make_aware(max_date)
 
     messages = []
     peer = to_peer_channel(channel_id)
+
     async for message in client.iter_messages(peer, limit=limit, reverse=False):
         if not getattr(message, "raw_text", None):
-            continue  # skip non-text
-        # Skip messages out of the max_date range
-        if max_date and message.date > max_date:
             continue
-        # Break if message is before min_date since messages descend by date
+
         if min_date and message.date < min_date:
             break
+
+        if max_date and message.date > max_date:
+            continue
+
         messages.append(message)
+
     return messages
 
 
-
-
-async def replay_historical_messages(client, messages):
+async def replay_historical_messages(client: TelegramClient, messages: list):
     """
-    Replay historical messages by simulating NewMessage events,
-    so the live handler processes them one-by-one individually.
+    Spielt historische Nachrichten ab, indem NewMessage-Events simuliert werden.
+    WICHTIG: Die Verarbeitung (Sanitizer/Processor) erfolgt durch den externen Handler.
     """
-    # Access the registered handler function (assumes only one handler)
+    if not client._event_builders:
+        print("⚠️ Warnung: Es wurden keine Handler registriert.")
+        return
+
+    # Greift auf die registrierte Handler-Funktion in handlers.py zu
     handler = client._event_builders[0][1]
 
     for message in messages:
-        raw_text = getattr(message, 'raw_text', None)
-        msg_text = raw_text or getattr(message, 'message', '') or ''
+        # Extrahiere den Nachrichtentext robust
+        msg_text = getattr(message, 'raw_text', None) or getattr(message, 'message', '') or ''
         if not msg_text:
             continue
 
-        # Simulate an event with required attributes
+        # Simuliere ein Event-Objekt mit allen Attributen, die der Handler in handlers.py benötigt
         class DummyEvent:
             def __init__(self, msg):
                 self.raw_text = msg_text
                 self.message = msg
+                # Die folgenden Attribute sind für die Link-Erstellung und Chat-Titel-Erkennung wichtig
                 self.chat = getattr(msg, 'chat', None)
                 self.chat_id = getattr(msg, 'chat_id', None)
                 self.id = getattr(msg, 'id', None)
@@ -319,38 +144,96 @@ async def replay_historical_messages(client, messages):
 
         dummy_event = DummyEvent(message)
 
-        # Call the handler with the dummy event
+        # Ruft den Handler in handlers.py auf, um das Signal zu verarbeiten
         await handler(dummy_event)
 
 
-async def main(channel_id, min_date=None, max_date=None):
+# --- ARGS PARSING (unverändert) ---
+
+def parse_args():
+    """
+    Analysiert Befehlszeilenargumente.
+    """
+    if len(sys.argv) < 2:
+        print("Usage: python main.py <channel_id> [source_channel_ids_comma_separated] [start_date] [end_date]")
+        sys.exit(1)
+
+    channel_id = sys.argv[1]
+
+    source_channel_ids = []
+    start_date = None
+    end_date = None
+
+    # ... (Rest der parse_args Funktion, wie in der letzten Korrektur)
+
+    if len(sys.argv) >= 3:
+        arg2 = sys.argv[2]
+
+        if "," in arg2 or (arg2.isdigit() or (arg2.startswith('-') and arg2[1:].isdigit())):
+            try:
+                source_channel_ids = list(map(int, arg2.split(','))) if "," in arg2 else [int(arg2)]
+
+                if len(sys.argv) >= 4:
+                    start_date = datetime.strptime(sys.argv[3], "%Y-%m-%d")
+                    if len(sys.argv) >= 5:
+                        end_date = datetime.strptime(sys.argv[4], "%Y-%m-%d")
+
+            except ValueError:
+                print(f"Invalid channel IDs or date format detected in argument 2/3.")
+                sys.exit(1)
+
+        else:
+            try:
+                start_date = datetime.strptime(arg2, "%Y-%m-%d")
+                if len(sys.argv) >= 4:
+                    end_date = datetime.strptime(sys.argv[3], "%Y-%m-%d")
+            except ValueError:
+                print(f"Invalid date format: {arg2}")
+                sys.exit(1)
+
+    return channel_id, source_channel_ids, start_date, end_date
+
+
+# --- MAIN LOGIK ---
+
+async def main(channel_id: str | int, min_date: datetime | None = None, max_date: datetime | None = None):
     client = get_client()
 
-    await client.start()
+    # Verbindungsversuch (Verwendet optional das 2FA-Passwort)
+    await client.start(password=TELEGRAM_PASSWORD)
 
-    register_handlers(client, [to_peer_channel(channel_id)])
+    # Handler aus handlers.py importieren und registrieren
+    register_handlers(client, [to_peer_channel(channel_id)], is_historical=True)
+
+    print(f"Lade historische Nachrichten von Kanal {channel_id}...")
     messages = await fetch_channel_history(client, channel_id, min_date=min_date, max_date=max_date)
-    print(f"Fetched {len(messages)} messages from {channel_id}")
+    print(f"✅ {len(messages)} Nachrichten im Datumsbereich gefunden.")
 
-    await replay_historical_messages(client, messages)
+    if messages:
+        print("▶️ Beginne Wiedergabe historischer Nachrichten...")
+        await replay_historical_messages(client, messages)
+        print("✅ Wiedergabe abgeschlossen.")
 
-    print("Replayed historical messages processed.")
-    await client.run_until_disconnected()
+    # run_until_disconnected() ist hier nicht nötig, da das Skript nach der Wiedergabe beendet werden soll.
+    # Wenn Sie nach der Wiedergabe in den Live-Modus wechseln möchten, fügen Sie es hinzu.
+    # await client.run_until_disconnected()
 
 
 if __name__ == "__main__":
     channel, ids, start_date, end_date = parse_args()
-    print(f"Channel: {channel}")
-    print(f"Source channel IDs: {ids}")
-    print(f"Start date: {start_date}")
-    print(f"End date: {end_date}")
 
-    if len(sys.argv) < 3:
-        print("Usage: python main.py <channel_id> <source_channel_ids_comma_separated> [start_date] [end_date]")
-        print("Date format: YYYY-MM-DD")
-        sys.exit(1)
+    print("\n--- Historische Signale ---\n")
+    print(f"Zielkanal: {channel}")
+    print(f"Startdatum: {start_date.strftime('%Y-%m-%d') if start_date else 'Anfang'}")
+    print(f"Enddatum: {end_date.strftime('%Y-%m-%d') if end_date else 'Jetzt'}")
+    print("\n--------------------------\n")
 
-    asyncio.run(main(channel, start_date, end_date))
-
-
-
+    try:
+        asyncio.run(main(channel, start_date, end_date))
+    except RuntimeError as e:
+        if "session" in str(e) and "missing" in str(e):
+            print("\n🚨 KRITISCHER FEHLER: TELEGRAM_STRING_SESSION fehlt oder ist ungültig.")
+            print("Bitte erstellen Sie eine neue, autorisierte Sitzung.")
+        else:
+            # traceback.print_exc() wäre hier hilfreich, um andere Fehler zu sehen
+            raise

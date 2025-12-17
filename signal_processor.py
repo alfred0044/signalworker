@@ -10,6 +10,7 @@ from signal_db import store_signalid, get_signalid, add_entry
 import json
 import os
 
+logging.basicConfig(level=logging.DEBUG)
 USE_LOCAL_STORAGE = os.getenv("USE_LOCAL_STORAGE", "False").lower() in ("true", "1", "yes")
 LOCAL_SIGNAL_FOLDER = os.getenv("LOCAL_SIGNAL_FOLDER")
 LOCAL_HISTORICAL_FOLDER = os.getenv("LOCAL_HISTORICAL_FOLDER", "historical_signals_storage")
@@ -24,6 +25,20 @@ lock = threading.Lock()
 signal_batches = {}
 manipulation_counters = {}  # memory map signalid -> manipulation count
 
+CHANNEL_CONFIG = {
+    "Nova Gold VIP": {
+        "entry_offset": 50,    # 50 Points (5 Pips)
+        "risk_overwrite": 0.02 # 2% Risiko pro Trade
+    },
+    "VasilyTrader Vip Signals": {
+        "entry_offset": 0,   # -20 Points
+        "risk_overwrite": 0.10 # 10% Risiko pro Trade
+    },
+    "signals_Test": {
+        "entry_offset": 0,  # -20 Points
+        "risk_overwrite": 0.0  # 10% Risiko pro Trade
+    }
+}
 
 @app.route("/ea-status-update", methods=["POST"])
 def ea_status_update():
@@ -191,21 +206,53 @@ async def process_sanitized_signal(
             unique[k] = signal
 
         # Fill context fields
-        for sig in unique.values():
+        for k, sig in unique.items():  # Wir iterieren über k, sig um sicherzugehen
+            # 1. Standard-Kontext setzen
             sig["signalid"] = main_signalid
             if source: sig["source"] = source
             if link: sig["link"] = make_telegram_link(link)
             if timestamp: sig["time"] = timestamp
             if telegram_message_id: sig["telegram_message_id"] = telegram_message_id
 
-            # Ensure new signals have manipulation: null
+            # 2. Kanal-spezifische Anpassungen (DIREKT im Objekt)
+            if source in CHANNEL_CONFIG:
+                config = CHANNEL_CONFIG[source]
+
+                # A. Risk Overwrite
+                if "risk_overwrite" in config:
+                    sig["risk"] = config["risk_overwrite"]
+                    logger.info(f"SET RISK: {sig['risk']} for {source}")
+
+                # B. Entry Offset
+                offset_points = config.get("entry_offset", 0)
+                if offset_points != 0 and sig.get("entry") is not None:
+                    direction = sig.get("signal", "").upper()
+                    point_val = 0.01  # Standard für Gold
+
+                    try:
+                        old_entry = float(sig["entry"])
+                        # Wichtig: offset_points * point_val
+                        mod = offset_points * point_val
+
+                        if "BUY" in direction:
+                            sig["entry"] = round(old_entry + mod, 2)
+                        elif "SELL" in direction:
+                            sig["entry"] = round(old_entry - mod, 2)
+
+                        logger.info(f"OFFSET APPLIED: {old_entry} -> {sig['entry']} ({direction})")
+                    except Exception as e:
+                        logger.error(f"Offset error: {e}")
+
+            # 3. Erst JETZT in die Datenbank und den Batch-Speicher schreiben
             if "manipulation" not in sig:
                 sig["manipulation"] = None
 
             entry_type = "manipulation" if sig.get("manipulation") else "entry"
+
+            # WICHTIG: Hier muss das MODIFIZIERTE sig übergeben werden!
             add_entry(main_signalid, telegram_message_id, entry_type, json.dumps(sig))
 
-        # Update global in-memory batch
+            # 4. Update global in-memory batch mit den modifizierten Objekten
         current_batch.extend(unique.values())
 
         # Deduplicate the full batch based on the original signal_key logic
