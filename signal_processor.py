@@ -10,7 +10,7 @@ from signal_db import store_signalid, get_signalid, add_entry
 import json
 import os
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.INFO)
 USE_LOCAL_STORAGE = os.getenv("USE_LOCAL_STORAGE", "False").lower() in ("true", "1", "yes")
 LOCAL_SIGNAL_FOLDER = os.getenv("LOCAL_SIGNAL_FOLDER")
 LOCAL_HISTORICAL_FOLDER = os.getenv("LOCAL_HISTORICAL_FOLDER", "historical_signals_storage")
@@ -26,7 +26,7 @@ signal_batches = {}
 manipulation_counters = {}  # memory map signalid -> manipulation count
 
 CHANNEL_CONFIG = {
-    "Nova Gold VIP": {
+    "🌸NOVA - GOLD PLATINUM 🎀": {
         "entry_offset": 50,    # 50 Points (5 Pips)
         "risk_overwrite": 0.02 # 2% Risiko pro Trade
     },
@@ -215,6 +215,7 @@ async def process_sanitized_signal(
             if telegram_message_id: sig["telegram_message_id"] = telegram_message_id
 
             # 2. Kanal-spezifische Anpassungen (DIREKT im Objekt)
+            print(source)
             if source in CHANNEL_CONFIG:
                 config = CHANNEL_CONFIG[source]
 
