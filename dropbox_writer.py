@@ -14,8 +14,6 @@ DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
 LOCAL_SIGNAL_FOLDER =  "local_signals"
 
 
-
-
 def store_signal_batch(signals, signalid, USE_LOCAL_STORAGE, LOCAL_SIGNAL_FOLDER=None):
     """
     Store a signal batch locally or on Dropbox under 'signal_<signalid>.json',
@@ -27,6 +25,13 @@ def store_signal_batch(signals, signalid, USE_LOCAL_STORAGE, LOCAL_SIGNAL_FOLDER
     if USE_LOCAL_STORAGE:
         if not LOCAL_SIGNAL_FOLDER:
             raise ValueError("LOCAL_SIGNAL_FOLDER must be set if USE_LOCAL_STORAGE is True.")
+
+        # NEU: Ordner erstellen, falls er nicht existiert
+        if not os.path.exists(LOCAL_SIGNAL_FOLDER):
+            os.makedirs(LOCAL_SIGNAL_FOLDER, exist_ok=True)
+            logger.info(f"Created local folder: {LOCAL_SIGNAL_FOLDER}")
+        # ---------------------------------------------
+
         filepath = os.path.join(LOCAL_SIGNAL_FOLDER, filename)
         try:
             with open(filepath, "w", encoding="utf-8") as f:
