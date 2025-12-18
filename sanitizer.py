@@ -287,6 +287,15 @@ async def sanitize_signal(signal_text: str, is_reply: bool = False, timeout: int
 def extract_manual_manipulation(text: str, instrument: str, signalid: str) -> dict | None:
     text_lower = text.lower().strip()
 
+    # look for break even manipulation
+    if any(cmd in text_lower for cmd in
+           ["set be", "break even"]):
+        return {
+            "instrument": instrument,
+            "signalid": signalid,
+            "manipulation": "break_even",
+        }
+
     # 1. Look for explicit commands
     if any(cmd in text_lower for cmd in
            ["close all", "cancel pending", "cancel", "close", "partial close", "close at entry"]):
@@ -327,14 +336,7 @@ def extract_manual_manipulation(text: str, instrument: str, signalid: str) -> di
             "signalid": signalid,
             "manipulation": "cancel_pending",
         }
-    # look for break even manipulation
-    if any(cmd in text_lower for cmd in
-           ["set be", "break even"]):
-        return {
-            "instrument": instrument,
-            "signalid": signalid,
-            "manipulation": "break_even",
-        }
+
 
     # If it's a reply but contains no detectable manipulation command, return None
     # and let it fall through to the AI parser if necessary (e.g. for non-standard updates).
