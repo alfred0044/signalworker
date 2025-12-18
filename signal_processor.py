@@ -10,7 +10,7 @@ from signal_db import store_signalid, get_signalid, add_entry
 import json
 import os
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.CRITICAL)
 USE_LOCAL_STORAGE = os.getenv("USE_LOCAL_STORAGE", "False").lower() in ("true", "1", "yes")
 LOCAL_SIGNAL_FOLDER = os.getenv("LOCAL_SIGNAL_FOLDER")
 LOCAL_HISTORICAL_FOLDER = os.getenv("LOCAL_HISTORICAL_FOLDER", "historical_signals_storage")
@@ -37,7 +37,11 @@ CHANNEL_CONFIG = {
     "signals_Test": {
         "entry_offset": 0,  # -20 Points
         "risk_overwrite": 0.0  # 10% Risiko pro Trade
-    }
+    },
+    "UnitedSignalsVIP": {
+        "entry_offset": 0,  # -20 Points
+        "risk_overwrite": 0.1 # 10% Risiko pro Trade
+    },
 }
 
 @app.route("/ea-status-update", methods=["POST"])
