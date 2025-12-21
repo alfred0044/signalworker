@@ -1,0 +1,60 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4342.0,
+      "sl": 4332,
+      "tp": 4340.0,
+      "time": "2025-12-17 08:58:51+00:00",
+      "source": "signals_Test",
+      "signalid": "e69f7c30-1de4-42c6-b5d1-9abe7328ce7e",
+      "manipulation": null,
+      "link": "https://t.me/c/2742470493/1199",
+      "telegram_message_id": 1199,
+      "risk": 0.1
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4341.33,
+      "sl": 4332,
+      "tp": 4341.33,
+      "time": "2025-12-17 08:58:51+00:00",
+      "source": "signals_Test",
+      "signalid": "e69f7c30-1de4-42c6-b5d1-9abe7328ce7e",
+      "manipulation": null,
+      "link": "https://t.me/c/2742470493/1199",
+      "telegram_message_id": 1199,
+      "risk": 0.1
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4340.67,
+      "sl": 4332,
+      "tp": 4343.67,
+      "time": "2025-12-17 08:58:51+00:00",
+      "source": "signals_Test",
+      "signalid": "e69f7c30-1de4-42c6-b5d1-9abe7328ce7e",
+      "manipulation": null,
+      "link": "https://t.me/c/2742470493/1199",
+      "telegram_message_id": 1199,
+      "risk": 0.1
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4340.0,
+      "sl": 4332,
+      "tp": null,
+      "time": "2025-12-17 08:58:51+00:00",
+      "source": "signals_Test",
+      "signalid": "e69f7c30-1de4-42c6-b5d1-9abe7328ce7e",
+      "manipulation": null,
+      "link": "https://t.me/c/2742470493/1199",
+      "telegram_message_id": 1199,
+      "risk": 0.1
+    }
+  ]
+}

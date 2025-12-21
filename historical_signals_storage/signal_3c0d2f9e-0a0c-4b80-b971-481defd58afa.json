@@ -1,0 +1,72 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4290.5,
+      "sl": 4285,
+      "tp": 4293.0,
+      "time": "2025-12-16 12:42:11+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "3c0d2f9e-0a0c-4b80-b971-481defd58afa",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37067",
+      "telegram_message_id": 37067,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4289.83,
+      "sl": 4285,
+      "tp": 4294.33,
+      "time": "2025-12-16 12:42:11+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "3c0d2f9e-0a0c-4b80-b971-481defd58afa",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37067",
+      "telegram_message_id": 37067,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4289.17,
+      "sl": 4285,
+      "tp": 4296.67,
+      "time": "2025-12-16 12:42:11+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "3c0d2f9e-0a0c-4b80-b971-481defd58afa",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37067",
+      "telegram_message_id": 37067,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4288.5,
+      "sl": 4285,
+      "tp": null,
+      "time": "2025-12-16 12:42:11+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "3c0d2f9e-0a0c-4b80-b971-481defd58afa",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37067",
+      "telegram_message_id": 37067,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signalid": "3c0d2f9e-0a0c-4b80-b971-481defd58afa",
+      "manipulation": "close_all",
+      "sl": null,
+      "tp": null,
+      "link": "https://t.me/c/2044139064/37070",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-16 13:22:46+00:00",
+      "telegram_message_id": 37070,
+      "risk": 0.02
+    }
+  ]
+}

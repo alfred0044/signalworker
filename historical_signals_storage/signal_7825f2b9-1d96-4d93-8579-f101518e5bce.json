@@ -1,0 +1,88 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4339.5,
+      "sl": 4345,
+      "tp": 4337.0,
+      "time": "2025-12-18 13:55:40+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "7825f2b9-1d96-4d93-8579-f101518e5bce",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37279",
+      "telegram_message_id": 37279,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4340.17,
+      "sl": 4345,
+      "tp": 4335.67,
+      "time": "2025-12-18 13:55:40+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "7825f2b9-1d96-4d93-8579-f101518e5bce",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37279",
+      "telegram_message_id": 37279,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4340.83,
+      "sl": 4345,
+      "tp": 4333.33,
+      "time": "2025-12-18 13:55:40+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "7825f2b9-1d96-4d93-8579-f101518e5bce",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37279",
+      "telegram_message_id": 37279,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4341.5,
+      "sl": 4345,
+      "tp": null,
+      "time": "2025-12-18 13:55:40+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "7825f2b9-1d96-4d93-8579-f101518e5bce",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37279",
+      "telegram_message_id": 37279,
+      "risk": 0.02
+    },
+    {
+      "signalid": "7825f2b9-1d96-4d93-8579-f101518e5bce",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/37280",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-18 13:57:46+00:00",
+      "telegram_message_id": 37280
+    },
+    {
+      "signalid": "7825f2b9-1d96-4d93-8579-f101518e5bce",
+      "manipulation": "break_even",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/37281",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-18 13:58:18+00:00",
+      "telegram_message_id": 37281
+    },
+    {
+      "instrument": "XAUUSD",
+      "signalid": "7825f2b9-1d96-4d93-8579-f101518e5bce",
+      "manipulation": "cancel_pending",
+      "link": "https://t.me/c/2044139064/37282",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-18 14:00:28+00:00",
+      "telegram_message_id": 37282,
+      "risk": 0.02
+    }
+  ]
+}

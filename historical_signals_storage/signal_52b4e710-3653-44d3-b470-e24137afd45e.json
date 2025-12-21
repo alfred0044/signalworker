@@ -1,0 +1,83 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4200.0,
+      "sl": 4196,
+      "tp": 4203.0,
+      "time": "2025-12-09 09:36:53+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "52b4e710-3653-44d3-b470-e24137afd45e",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36671",
+      "telegram_message_id": 36671
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4200.67,
+      "sl": 4196,
+      "tp": 4205.67,
+      "time": "2025-12-09 09:36:53+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "52b4e710-3653-44d3-b470-e24137afd45e",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36671",
+      "telegram_message_id": 36671
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4201.33,
+      "sl": 4196,
+      "tp": 4209.33,
+      "time": "2025-12-09 09:36:53+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "52b4e710-3653-44d3-b470-e24137afd45e",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36671",
+      "telegram_message_id": 36671
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4202.0,
+      "sl": 4196,
+      "tp": null,
+      "time": "2025-12-09 09:36:53+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "52b4e710-3653-44d3-b470-e24137afd45e",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36671",
+      "telegram_message_id": 36671
+    },
+    {
+      "signalid": "52b4e710-3653-44d3-b470-e24137afd45e",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36672",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-09 09:41:39+00:00",
+      "telegram_message_id": 36672
+    },
+    {
+      "signalid": "52b4e710-3653-44d3-b470-e24137afd45e",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36673",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-09 09:45:01+00:00",
+      "telegram_message_id": 36673
+    },
+    {
+      "instrument": "XAUUSD",
+      "signalid": "52b4e710-3653-44d3-b470-e24137afd45e",
+      "manipulation": "cancel_pending",
+      "link": "https://t.me/c/2044139064/36675",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-09 09:47:22+00:00",
+      "telegram_message_id": 36675
+    }
+  ]
+}

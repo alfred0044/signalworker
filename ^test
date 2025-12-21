@@ -1,0 +1,159 @@
+import asyncio
+from sanitizer import sanitize_signal
+from signal_processor import  process_sanitized_signal
+from datetime import datetime, timezone
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
+from telethon.tl.types import PeerChannel
+from dotenv import load_dotenv
+import os
+import sys
+load_dotenv()
+API_ID = int(os.getenv("TELEGRAM_API_ID"))
+API_HASH = os.getenv("TELEGRAM_API_HASH")
+SESSION_STRING = os.getenv("TELEGRAM_STRING_SESSION")
+def to_peer_channel(channel_id):
+    if isinstance(channel_id, str) and channel_id.startswith("-100"):
+        channel_id = int(channel_id[4:])  # Remove the '-100' prefix
+    if isinstance(channel_id, int):
+        return PeerChannel(channel_id=channel_id)
+    return channel_id
+def parse_args():
+    if len(sys.argv) < 2:
+        print("Usage: python main.py <channel_id> [source_channel_ids_comma_separated] [start_date] [end_date]")
+        sys.exit(1)
+    channel_id = sys.argv[1]
+    source_channel_ids = []
+    start_date = None
+    end_date = None
+    # Attempt to parse source_channel_ids if provided
+    if len(sys.argv) >= 3:
+        arg = sys.argv[2]
+        if "," in arg:  # heuristic: if comma exists, parse IDs
+            try:
+                source_channel_ids = list(map(int, arg.split(',')))
+            except ValueError:
+                print(f"Invalid source_channel_ids: {arg}")
+                sys.exit(1)
+        else:
+            # If no comma, might be start_date instead, so treat arg 2 as date
+            try:
+                start_date = datetime.strptime(arg, "%Y-%m-%d")
+                # Try parsing end_date if it exists
+                if len(sys.argv) >= 4:
+                    end_date = datetime.strptime(sys.argv[3], "%Y-%m-%d")
+            except ValueError:
+                print(f"Invalid date format: {arg}")
+                sys.exit(1)
+    # If 3rd argument was source_channel_ids, parse dates from later args
+    if source_channel_ids and len(sys.argv) >= 4:
+        try:
+            start_date = datetime.strptime(sys.argv[3], "%Y-%m-%d")
+            if len(sys.argv) >= 5:
+                end_date = datetime.strptime(sys.argv[4], "%Y-%m-%d")
+        except ValueError:
+            print(f"Invalid date format in arguments.")
+            sys.exit(1)
+    return channel_id, source_channel_ids, start_date, end_date
+def get_client():
+    if not SESSION_STRING:
+        raise RuntimeError("TELEGRAM_STRING_SESSION missing!")
+    return TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+def make_aware(dt):
+    if dt and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+async def fetch_channel_history(client, channel_id, limit=None, min_date=None, max_date=None):
+    min_date = make_aware(min_date)
+    max_date = make_aware(max_date)
+    messages = []
+    peer = to_peer_channel(channel_id)
+    async for message in client.iter_messages(peer, limit=limit, reverse=False):
+        # Skip messages out of the max_date range
+        if max_date and message.date > max_date:
+            continue
+        # Break if message is before min_date since messages descend by date
+        if min_date and message.date < min_date:
+            break
+        messages.append(message)
+    return messages
+def register_handlers(client, source_channels):
+    @client.on(events.NewMessage(chats=source_channels))
+    async def handler(event):
+        text = event.raw_text.strip()
+        if not text:
+            return
+        sanitized = await sanitize_signal(
+            signal_text=text,
+            is_reply=event.message.is_reply
+        )
+        await process_sanitized_signal(
+            sanitized,
+            source=event.chat.title,
+            link=f"https://t.me/c/{abs(event.chat_id)}/{event.id}",
+            timestamp=str(event.message.date),
+            telegram_message_id=event.id,
+            reply_to_msg_id=event.message.reply_to_msg_id
+        )
+async def replay_historical_messages(client, messages):
+    """
+    Replay historical messages by simulating NewMessage events,
+    so the live handler processes them.
+    """
+    # Get the first registered event handler callback function
+    handler = client._event_builders[0][1]
+    for message in messages:
+        class MockEvent:
+            def __init__(self, message):
+                self.message = message
+                self.raw_text = message.raw_text if hasattr(message, 'raw_text') else message.message
+                self.chat = message.chat or None
+                self.chat_id = message.chat_id
+                self.id = message.id
+            @property
+            def is_reply(self):
+                return self.message.is_reply if hasattr(self.message, 'is_reply') else False
+        mock_event = MockEvent(message)
+        await handler(mock_event)
+async def main(channel_id, min_date=None, max_date=None):
+    client = get_client()
+    await client.start()
+    register_handlers(client, channel_id)
+    messages = await fetch_channel_history(client, channel_id, min_date=min_date, max_date=max_date)
+    print(f"Fetched {len(messages)} messages from {channel_id}")
+    await replay_historical_messages(client, messages)
+    print("Replayed historical messages processed.")
+    await client.run_until_disconnected()
+async def get_entity_safe(client, entity_id_or_username):
+    """
+    Safely fetch a Telegram entity by ID or username, with preloading dialogs to populate cache.
+    Handles typical errors gracefully.
+    """
+    try:
+        # Preload dialogs to populate cache
+        await client.get_dialogs()
+        # If input looks like channel id with -100 prefix, convert for PeerChannel
+        if isinstance(entity_id_or_username, int) or (
+                isinstance(entity_id_or_username, str) and entity_id_or_username.startswith("-100")):
+            # Remove -100 prefix if present
+            entity_id = int(str(entity_id_or_username).replace("-100", ""))
+            # Construct PeerChannel to help Telethon understand type
+            peer = PeerChannel(channel_id=entity_id)
+            return await client.get_entity(peer)
+        # Otherwise try regular entity fetch
+        return await client.get_entity(entity_id_or_username)
+    except TelethonValueError as e:
+        print(f"Entity not found or inaccessible: {entity_id_or_username} - {e}")
+        return None
+if __name__ == "__main__":
+    channel, ids, start_date, end_date = parse_args()
+    print(f"Channel: {channel}")
+    print(f"Source channel IDs: {ids}")
+    print(f"Start date: {start_date}")
+    print(f"End date: {end_date}")
+    import sys
+    if len(sys.argv) < 3:
+        print("Usage: python main.py <channel_id> <source_channel_ids_comma_separated> [start_date] [end_date]")
+        print("Date format: YYYY-MM-DD")
+        sys.exit(1)
+    asyncio.run(main(channel, start_date, end_date))

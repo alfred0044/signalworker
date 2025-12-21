@@ -23,7 +23,7 @@ BLACKLIST_KEYWORDS: list[str] = [
     "tp hit", "sl hit", "closed at", "update", "running",
     "active signal", "already running", "already active",
     "signal in play", "closed in profit", "floating",
-    "summary", "recap", "performance", "winrate", "win rate",
+    "summary","Summary", "recap", "performance", "winrate", "win rate",
     "today's trades", "we’ve just closed out", "total of", "lot size",
     "scalping", "pips in a day", "dollar profit",
     "trade signals were shared", "incredible day", "signals missed",
@@ -40,90 +40,51 @@ UPDATE_PATTERNS: list[str] = [
 
 
 def should_ignore_message(text: str) -> bool:
+    if not text:
+        return True
+
     original_text = text
+    # Wir strippen am Anfang/Ende, um Probleme mit ^ zu vermeiden
     text_lower = text.lower().strip()
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+    # 1. Verbesserte Pips-Erkennung (erkennt "+130", "+ 130", "- 50" etc.)
+    # Das ist wichtig für Befehle wie "Close +20 pips"
+    is_pips_manipulation = bool(re.search(r"(\+|\-)\s*\d+\s*pips", text_lower))
 
-
-    # NEU: Manipulationen müssen frühzeitig erkannt werden, damit der BLACKLIST-Filter sie nicht ignoriert
-    is_pips_manipulation = re.search(r"\+\d+\s*pips", text_lower)
-
-
-    # --- 1. PRE-FILTER: MINIMALE PRÜFUNG AUF HANDELSAKTIVITÄT ---
+    # --- Schritt 1: Grundlegende Keywords ---
     found_required_kw = any(kw.lower() in text_lower for kw in REQUIRED_TRADING_KEYWORDS)
-
-
     if not found_required_kw and not is_pips_manipulation:
-
-        log_skipped_signal(f"{timestamp} - Ignoring: No core trading keyword found", original_text)
-
         return True
 
-
-
-    # --- 2. BLACKLIST-PRÜFUNG (MUSS VOR DER WHITELISTING-PRÜFUNG ERFOLGEN) ---
+    # --- Schritt 2: Blacklist (Gnadenlos) ---
+    # Wir prüfen hier direkt gegen text_lower, das ist sicherer
     for word in BLACKLIST_KEYWORDS:
-        # ROBUSTERE PRÜFUNG: Sucht entweder am Anfang (^) oder an einer Wortgrenze (\b),
-        # gefolgt von beliebigen Leerzeichen, Satzzeichen, etc. ([\s\W]*).
-        pattern = r'(?:^|\b)' + re.escape(word) + r'[\s\W]*'
-
-        match = re.search(pattern, original_text, re.IGNORECASE)
-
-
-        if match:
-
-            log_skipped_signal(f"🛑 Ignoring: matched blacklist keyword '{word}'", original_text)
-
+        # Erklärtes Ziel: Wenn "summary" irgendwo als Wort steht, ignorieren wir es.
+        pattern = r'\b' + re.escape(word.lower()) + r'\b'
+        if re.search(pattern, text_lower):
+            # DEBUG: print(f"🛑 Blacklist Treffer: {word}")
             return True
 
+    # --- Schritt 3: Pflicht-Parameter (Whitelist) ---
+    # (Deine bestehende SL/TP/Manipulation Logik...)
+    has_sl = bool(re.search(r'\bsl\b|\bstop\s*loss\b|🟣', text_lower))
+    has_tp = bool(re.search(r'\btp\d*|\btake\s*profit\b|🟡', text_lower))
 
-
-    # --- 3. PRÜFUNG AUF ZWINGENDE TRADING-PARAMETER (WHITELISTING) ---
-
-    # SL Check
-    has_sl_match_1 = re.search(r'\bsl\b[\s:\-]*\d+', text_lower)
-    has_sl_match_2 = re.search(r'stop\s*loss', text_lower)
-    has_sl_match_3 = re.search(r'🟣', text)
-    has_sl = bool(has_sl_match_1 or has_sl_match_2 or has_sl_match_3)
-
-
-    # TP Check
-    has_tp_match_1 = re.search(r'tp\d*[\s:=+\-]*[\$\d\.]+', text_lower)
-    has_tp_match_2 = re.search(r'🟡', text)
-    has_tp_match_3 = re.search(r'\btp\d*[\s:=+\-]*\d+\s*p[ip]*s?\b', text_lower)
-    has_tp_match_4 = re.search(r'take\s*profit', text_lower)
-    has_tp = bool(has_tp_match_1 or has_tp_match_2 or has_tp_match_3 or has_tp_match_4)
-
-
-
-    # Manipulation Check
-    manipulation_cmds = ["close all", "close at entry", "move sl to", "cancel pending", "cancel", "close", "set be", "break even"]
+    manipulation_cmds = ["close all", "close at entry", "move sl to", "cancel pending", "cancel", "close", "set be",
+                         "break even"]
     has_manipulation_cmd = any(cmd in text_lower for cmd in manipulation_cmds)
-    manipulation_commands_present = has_manipulation_cmd or bool(is_pips_manipulation)
 
-
-
-    # Wenn weder SL/TP noch ein expliziter Manipulationsbefehl vorhanden ist, ignorieren.
-    if not (has_sl or has_tp or manipulation_commands_present):
-
-        log_skipped_signal(f"{timestamp} - Ignoring: missing SL or TP or manipulation commands", original_text)
-
+    if not (has_sl or has_tp or has_manipulation_cmd or is_pips_manipulation):
         return True
 
-
-
-    # --- 4. UPDATE-MUSTER PRÜFUNG (Regex-Muster) ---
-    for i, pattern in enumerate(UPDATE_PATTERNS):
-        match = re.search(pattern, text_lower)
-
-
-        if match and not is_pips_manipulation:
-
-            log_skipped_signal("Ignored signal: update pattern detected", original_text)
-
-            return True
-
+    # --- Schritt 4: Update-Muster (Regex) ---
+    for pattern in UPDATE_PATTERNS:
+        # Hier wichtig: Ein Summary-Eintrag wie "Buy: +100 pips"
+        # soll ignoriert werden, AUẞER es ist ein expliziter Close-Befehl dabei.
+        if re.search(pattern, text_lower):
+            # Wenn es wie ein Update aussieht und KEIN "close" oder "cancel" Wort enthält:
+            if not any(c in text_lower for c in ["close", "cancel", "entry"]):
+                return True
 
     return False
 

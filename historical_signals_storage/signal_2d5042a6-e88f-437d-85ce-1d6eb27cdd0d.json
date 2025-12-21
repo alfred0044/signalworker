@@ -1,0 +1,26 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4203.0,
+      "sl": 4200,
+      "tp": null,
+      "time": "2025-12-09 13:11:54+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "2d5042a6-e88f-437d-85ce-1d6eb27cdd0d",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36695",
+      "telegram_message_id": 36695
+    },
+    {
+      "instrument": "XAUUSD",
+      "signalid": "2d5042a6-e88f-437d-85ce-1d6eb27cdd0d",
+      "manipulation": "cancel_pending",
+      "link": "https://t.me/c/2044139064/36697",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-09 13:18:18+00:00",
+      "telegram_message_id": 36697
+    }
+  ]
+}

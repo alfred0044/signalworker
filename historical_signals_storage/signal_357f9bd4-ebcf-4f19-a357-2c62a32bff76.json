@@ -1,0 +1,119 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4240.0,
+      "sl": 4245,
+      "tp": 4237.0,
+      "time": "2025-12-11 14:40:27+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36842",
+      "telegram_message_id": 36842
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4240.67,
+      "sl": 4245,
+      "tp": 4235.67,
+      "time": "2025-12-11 14:40:27+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36842",
+      "telegram_message_id": 36842
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4241.33,
+      "sl": 4245,
+      "tp": 4233.33,
+      "time": "2025-12-11 14:40:27+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36842",
+      "telegram_message_id": 36842
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4242.0,
+      "sl": 4245,
+      "tp": null,
+      "time": "2025-12-11 14:40:27+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36842",
+      "telegram_message_id": 36842
+    },
+    {
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": "close_all",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36843",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-11 14:45:33+00:00",
+      "telegram_message_id": 36843
+    },
+    {
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36844",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-11 14:46:23+00:00",
+      "telegram_message_id": 36844
+    },
+    {
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36846",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-11 14:47:26+00:00",
+      "telegram_message_id": 36846
+    },
+    {
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36848",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-11 14:49:15+00:00",
+      "telegram_message_id": 36848
+    },
+    {
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36849",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-11 14:51:45+00:00",
+      "telegram_message_id": 36849
+    },
+    {
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36851",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-11 14:56:46+00:00",
+      "telegram_message_id": 36851
+    },
+    {
+      "instrument": "XAUUSD",
+      "signalid": "357f9bd4-ebcf-4f19-a357-2c62a32bff76",
+      "manipulation": "cancel_pending",
+      "link": "https://t.me/c/2044139064/36852",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-11 15:01:56+00:00",
+      "telegram_message_id": 36852
+    }
+  ]
+}

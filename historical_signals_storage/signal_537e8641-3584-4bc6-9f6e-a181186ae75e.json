@@ -1,0 +1,76 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4210.0,
+      "sl": 4105,
+      "tp": 4213.0,
+      "time": "2025-12-10 02:01:22+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "537e8641-3584-4bc6-9f6e-a181186ae75e",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36715",
+      "telegram_message_id": 36715
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4209.33,
+      "sl": 4105,
+      "tp": 4214.33,
+      "time": "2025-12-10 02:01:22+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "537e8641-3584-4bc6-9f6e-a181186ae75e",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36715",
+      "telegram_message_id": 36715
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4208.67,
+      "sl": 4105,
+      "tp": 4216.67,
+      "time": "2025-12-10 02:01:22+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "537e8641-3584-4bc6-9f6e-a181186ae75e",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36715",
+      "telegram_message_id": 36715
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4208.0,
+      "sl": 4105,
+      "tp": null,
+      "time": "2025-12-10 02:01:22+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "537e8641-3584-4bc6-9f6e-a181186ae75e",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36715",
+      "telegram_message_id": 36715
+    },
+    {
+      "signalid": "537e8641-3584-4bc6-9f6e-a181186ae75e",
+      "manipulation": "close_all",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36716",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-10 03:21:20+00:00",
+      "telegram_message_id": 36716
+    },
+    {
+      "instrument": "XAUUSD",
+      "signalid": "537e8641-3584-4bc6-9f6e-a181186ae75e",
+      "manipulation": "close_all",
+      "sl": null,
+      "tp": null,
+      "link": "https://t.me/c/2044139064/36717",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-10 03:38:51+00:00",
+      "telegram_message_id": 36717
+    }
+  ]
+}

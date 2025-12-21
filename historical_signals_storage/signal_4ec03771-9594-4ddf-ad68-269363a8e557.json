@@ -1,0 +1,14 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signalid": "4ec03771-9594-4ddf-ad68-269363a8e557",
+      "manipulation": "cancel_pending",
+      "link": "https://t.me/c/2044139064/37152",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-17 04:38:01+00:00",
+      "telegram_message_id": 37152,
+      "risk": 0.02
+    }
+  ]
+}

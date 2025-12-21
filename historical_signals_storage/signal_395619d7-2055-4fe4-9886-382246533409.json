@@ -1,0 +1,70 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4327.5,
+      "sl": 4333,
+      "tp": 4325.0,
+      "time": "2025-12-18 08:08:11+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "395619d7-2055-4fe4-9886-382246533409",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37241",
+      "telegram_message_id": 37241,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4328.17,
+      "sl": 4333,
+      "tp": 4323.67,
+      "time": "2025-12-18 08:08:11+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "395619d7-2055-4fe4-9886-382246533409",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37241",
+      "telegram_message_id": 37241,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4328.83,
+      "sl": 4333,
+      "tp": 4321.33,
+      "time": "2025-12-18 08:08:11+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "395619d7-2055-4fe4-9886-382246533409",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37241",
+      "telegram_message_id": 37241,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4329.5,
+      "sl": 4333,
+      "tp": null,
+      "time": "2025-12-18 08:08:11+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "395619d7-2055-4fe4-9886-382246533409",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37241",
+      "telegram_message_id": 37241,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signalid": "395619d7-2055-4fe4-9886-382246533409",
+      "manipulation": "cancel_pending",
+      "link": "https://t.me/c/2044139064/37243",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-18 08:56:12+00:00",
+      "telegram_message_id": 37243,
+      "risk": 0.02
+    }
+  ]
+}

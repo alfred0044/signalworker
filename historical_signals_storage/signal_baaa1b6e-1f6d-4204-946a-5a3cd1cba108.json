@@ -1,0 +1,79 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4328.5,
+      "sl": 4333,
+      "tp": 4326.0,
+      "time": "2025-12-16 14:40:44+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "baaa1b6e-1f6d-4204-946a-5a3cd1cba108",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37084",
+      "telegram_message_id": 37084,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4327.83,
+      "sl": 4333,
+      "tp": 4323.33,
+      "time": "2025-12-16 14:40:44+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "baaa1b6e-1f6d-4204-946a-5a3cd1cba108",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37084",
+      "telegram_message_id": 37084,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4327.17,
+      "sl": 4333,
+      "tp": 4319.67,
+      "time": "2025-12-16 14:40:44+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "baaa1b6e-1f6d-4204-946a-5a3cd1cba108",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37084",
+      "telegram_message_id": 37084,
+      "risk": 0.02
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "SELL LIMIT",
+      "entry": 4326.5,
+      "sl": 4333,
+      "tp": null,
+      "time": "2025-12-16 14:40:44+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "baaa1b6e-1f6d-4204-946a-5a3cd1cba108",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/37084",
+      "telegram_message_id": 37084,
+      "risk": 0.02
+    },
+    {
+      "signalid": "baaa1b6e-1f6d-4204-946a-5a3cd1cba108",
+      "manipulation": "break_even",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/37085",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-16 14:41:20+00:00",
+      "telegram_message_id": 37085
+    },
+    {
+      "instrument": "XAUUSD",
+      "signalid": "baaa1b6e-1f6d-4204-946a-5a3cd1cba108",
+      "manipulation": "break_even",
+      "link": "https://t.me/c/2044139064/37087",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-16 14:53:40+00:00",
+      "telegram_message_id": 37087,
+      "risk": 0.02
+    }
+  ]
+}

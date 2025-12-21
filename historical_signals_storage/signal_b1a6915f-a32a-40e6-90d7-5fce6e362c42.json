@@ -1,0 +1,121 @@
+{
+  "signals": [
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4332.0,
+      "sl": 4327,
+      "tp": 4335.0,
+      "time": "2025-12-12 13:16:05+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36921",
+      "telegram_message_id": 36921
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4331.33,
+      "sl": 4327,
+      "tp": 4336.33,
+      "time": "2025-12-12 13:16:05+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36921",
+      "telegram_message_id": 36921
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4330.67,
+      "sl": 4327,
+      "tp": 4338.67,
+      "time": "2025-12-12 13:16:05+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36921",
+      "telegram_message_id": 36921
+    },
+    {
+      "instrument": "XAUUSD",
+      "signal": "BUY LIMIT",
+      "entry": 4330.0,
+      "sl": 4327,
+      "tp": null,
+      "time": "2025-12-12 13:16:05+00:00",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": null,
+      "link": "https://t.me/c/2044139064/36921",
+      "telegram_message_id": 36921
+    },
+    {
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36934",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-12 14:35:51+00:00",
+      "telegram_message_id": 36934
+    },
+    {
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36935",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-12 14:36:05+00:00",
+      "telegram_message_id": 36935
+    },
+    {
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36936",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-12 14:36:39+00:00",
+      "telegram_message_id": 36936
+    },
+    {
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36937",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-12 14:40:27+00:00",
+      "telegram_message_id": 36937
+    },
+    {
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36938",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-12 14:51:30+00:00",
+      "telegram_message_id": 36938
+    },
+    {
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": "cancel_pending",
+      "instrument": "XAUUSD",
+      "link": "https://t.me/c/2044139064/36939",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-12 14:54:35+00:00",
+      "telegram_message_id": 36939
+    },
+    {
+      "instrument": "XAUUSD",
+      "signalid": "b1a6915f-a32a-40e6-90d7-5fce6e362c42",
+      "manipulation": "close_all",
+      "sl": null,
+      "tp": null,
+      "link": "https://t.me/c/2044139064/36940",
+      "source": "\ud83c\udf38NOVA - GOLD PLATINUM \ud83c\udf80",
+      "time": "2025-12-12 15:00:05+00:00",
+      "telegram_message_id": 36940
+    }
+  ]
+}
